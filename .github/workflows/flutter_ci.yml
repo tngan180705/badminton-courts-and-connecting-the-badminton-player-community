@@ -1,0 +1,29 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [main, develop] # Chạy khi push vào main hoặc develop
+  pull_request:
+    branches: [main] # Chạy khi có yêu cầu gộp code vào main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.6" # Hoặc phiên bản bạn đang dùng
+          channel: "stable"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Check format
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze code
+        run: flutter analyze # Tự động quét 163 lỗi như bạn từng gặp
