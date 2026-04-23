@@ -1,27 +1,75 @@
+import 'dart:io'; // Cần để dùng kiểu dữ liệu File
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart'; // Cần để upload ảnh
 import '../models/user_model.dart';
 
 class UserRepository {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _collection = 'users';
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Lấy thông tin chi tiết một người dùng
-  Future<UserModel?> getUserById(String userId) async {
-    try {
-      final doc = await _firestore.collection(_collection).doc(userId).get();
-      if (doc.exists) {
-        return UserModel.fromFirestore(doc.data()!, doc.id);
-      }
-    } catch (e) {
-      print('Error getting user: $e');
-    }
-    return null;
+  Future<void> registerUser({
+  required String email,
+  required String password,
+  required String fullName,
+  required String phone,
+  required String gender,
+  required String skillLevel,
+  File? imageFile,
+}) async {
+  // 1. Tạo Auth (Bắt buộc phải xong trước)
+  UserCredential credential = await _auth.createUserWithEmailAndPassword(
+    email: email, 
+    password: password
+  );
+  String uid = credential.user!.uid;
+
+  // 2. Tạo đối tượng User với avatarUrl trống
+  UserModel newUser = UserModel(
+    userId: uid,
+    email: email,
+    fullName: fullName,
+    phone: phone,
+    gender: gender,
+    avatarUrl: "", // Tạm thời để trống
+    role: "player",
+    skillLevel: skillLevel,
+    reliabilityScore: 100,
+    walletBalance: 0,
+    isActive: true,
+    createdAt: DateTime.now(),
+  );
+
+  // 3. Lưu vào Firestore ngay lập tức (Để user thành công bước này đã)
+  await _db.collection('users').doc(uid).set(newUser.toFirestore());
+
+  // 4. Xử lý ảnh chạy ngầm (Nếu có ảnh)
+  if (imageFile != null) {
+    // Không dùng await ở đây nếu bạn muốn đăng ký xong ngay lập tức
+    // Hoặc dùng try-catch riêng để nếu lỗi ảnh cũng không hỏng Register
+    _uploadAndSyncAvatar(uid, imageFile);
   }
+}
 
-  // Cập nhật số dư ví (Khi nạp tiền hoặc thanh toán)
-  Future<void> updateWalletBalance(String userId, double newBalance) async {
-    await _firestore.collection(_collection).doc(userId).update({
-      'wallet_balance': newBalance,
+// Hàm bổ trợ: Upload và tự động đồng bộ link vào Firestore
+Future<void> _uploadAndSyncAvatar(String uid, File file) async {
+  try {
+    final ref = FirebaseStorage.instance.ref().child('avatars').child('$uid.jpg');
+    
+    // Upload file
+    await ref.putFile(file);
+    
+    // Lấy link
+    String downloadUrl = await ref.getDownloadURL();
+    
+    // Cập nhật lại duy nhất trường avatar_url trong Firestore
+    await _db.collection('users').doc(uid).update({
+      'avatar_url': downloadUrl,
     });
+    
+    print("Đã cập nhật Avatar thành công!");
+  } catch (e) {
+    print("Lỗi xử lý ảnh ngầm: $e");
   }
+}
 }
