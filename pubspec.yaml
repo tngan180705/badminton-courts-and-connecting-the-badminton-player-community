@@ -4,11 +4,12 @@ publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.1.0 <4.0.0'
+  sdk: ">=3.1.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
+  carousel_slider: ^5.0.0
   cupertino_icons: ^1.0.8
 
   # --- Firebase ---
@@ -31,7 +32,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-  # ĐÚNG: Khai báo assets phải nằm ở đây
   assets:
-    - assets/images/image.png
+    - assets/images/

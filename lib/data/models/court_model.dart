@@ -9,6 +9,7 @@ class CourtModel {
   final String openTime;
   final String closeTime;
   final DateTime createdAt;
+  final String imageUrl;
 
   CourtModel({
     required this.courtId,
@@ -21,6 +22,7 @@ class CourtModel {
     required this.openTime,
     required this.closeTime,
     required this.createdAt,
+    required this.imageUrl,
   });
 
   // Chuyển từ Firestore JSON sang Object Flutter
@@ -38,6 +40,7 @@ class CourtModel {
       createdAt: (json['created_at'] != null)
           ? json['created_at'].toDate()
           : DateTime.now(),
+      imageUrl: json['image_url'] ?? '',
     );
   }
 
@@ -53,6 +56,7 @@ class CourtModel {
       'open_time': openTime,
       'close_time': closeTime,
       'created_at': createdAt,
+      'image_url': imageUrl,
     };
   }
 }

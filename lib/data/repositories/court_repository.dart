@@ -1,6 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/court_model.dart';
 import '../models/sub_court_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final courtRepositoryProvider =
+    Provider<CourtRepository>((ref) => CourtRepository());
 
 class CourtRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

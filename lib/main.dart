@@ -1,45 +1,58 @@
-import 'package:badminton_app/presentation/screens/home/home_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'firebase_options.dart'; // Đảm bảo đã import file này
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+// Import đúng cấu trúc thư mục feature-based
 import 'core/theme/app_theme.dart';
-import 'presentation/screens/auth/login_screen.dart';
+import 'presentation/features/auth/pages/login_screen.dart';
+import 'presentation/features/court/pages/home_screen.dart'; // Đã sửa path theo feature court
+import 'presentation/features/auth/providers/auth_state_provider.dart'; // File vừa tạo ở trên
 
 void main() async {
-  // 1. Phải có dòng này để khởi tạo các service hệ thống
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // 2. Khởi tạo Firebase với options cụ thể
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  runApp(const ProviderScope(child: MyApp()));
+  await FirebaseAuth.instance.signOut();
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
+  // Chuyển sang ConsumerWidget để dùng ref
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 1. Lắng nghe stream thay đổi trạng thái (đã tạo ở bước trước)
+    final authState = ref.watch(authStateChangesProvider);
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Badminton App',
       theme: AppTheme.light,
-      // Logic điều hướng chuẩn:
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      // 2. Sử dụng .when để handle 3 trạng thái của một Stream
+      home: authState.when(
+        data: (user) {
+          // Nếu user == null nghĩa là chưa đăng nhập hoặc đã logout
+          if (user == null) {
+            return LoginScreen();
           }
-          if (snapshot.hasData) {
-            return const HomeScreen(); // Nếu đã login thì vào đây
-          }
-          return const LoginScreen(); // Nếu chưa thì vào đây
+          // Nếu có user, đẩy thẳng vào Home
+          return const HomeScreen();
         },
+        // Trong lúc app đang check Firebase (mất khoảng 1-2s đầu)
+        loading: () => const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+        // Nếu lỗi kết nối Firebase
+        error: (e, st) => Scaffold(
+          body: Center(child: Text("Lỗi khởi động: $e")),
+        ),
       ),
     );
   }
