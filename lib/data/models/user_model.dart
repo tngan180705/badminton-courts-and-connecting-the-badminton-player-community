@@ -3,9 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class UserModel {
   final String userId;
   final String fullName;
-  final String email;    // Mới bổ sung
+  final String email; // Mới bổ sung
   final String phone;
-  final String gender;   // Mới bổ sung
+  final String gender; // Mới bổ sung
   final String avatarUrl;
   final String role;
   final String skillLevel;
