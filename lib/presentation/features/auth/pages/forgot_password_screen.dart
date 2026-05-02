@@ -32,7 +32,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       } on FirebaseAuthException catch (e) {
         String message = "Đã xảy ra lỗi";
         if (e.code == 'user-not-found') message = "Email này chưa được đăng ký";
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message), backgroundColor: AppColors.error),
         );
@@ -47,15 +47,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Kiểm tra Email", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
-        content: const Text("Link đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư đến (hoặc thư rác) của bạn."),
+        title: const Text("Kiểm tra Email",
+            style: TextStyle(
+                fontWeight: FontWeight.bold, color: AppColors.primary)),
+        content: const Text(
+            "Link đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư đến (hoặc thư rác) của bạn."),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context); // Đóng dialog
               Navigator.pop(context); // Quay lại màn hình Login
             },
-            child: const Text("QUAY LẠI ĐĂNG NHẬP", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.secondary)),
+            child: const Text("QUAY LẠI ĐĂNG NHẬP",
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: AppColors.secondary)),
           ),
         ],
       ),
@@ -70,7 +75,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new,
+              color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -81,22 +87,31 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Quên mật khẩu? 🔑", style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.primary)),
+              const Text("Quên mật khẩu? 🔑",
+                  style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.primary)),
               const SizedBox(height: 10),
-              const Text("Nhập email của bạn, chúng tôi sẽ gửi link để đặt lại mật khẩu mới.", 
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
+              const Text(
+                  "Nhập email của bạn, chúng tôi sẽ gửi link để đặt lại mật khẩu mới.",
+                  style:
+                      TextStyle(color: AppColors.textSecondary, fontSize: 15)),
               const SizedBox(height: 40),
-              
+
               // Ô nhập Email
               TextFormField(
                 controller: _emailController,
                 validator: Validators.validateEmail,
                 decoration: InputDecoration(
                   hintText: "Email của bạn",
-                  prefixIcon: const Icon(Icons.email_outlined, color: AppColors.secondary),
+                  prefixIcon: const Icon(Icons.email_outlined,
+                      color: AppColors.secondary),
                   filled: true,
                   fillColor: Colors.white,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide.none),
                 ),
               ),
               const SizedBox(height: 30),
@@ -109,11 +124,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   onPressed: _isLoading ? null : _resetPassword,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15)),
                   ),
-                  child: _isLoading 
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("GỬI YÊU CẦU", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("GỬI YÊU CẦU",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                 ),
               ),
             ],

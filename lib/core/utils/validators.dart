@@ -1,13 +1,15 @@
 class Validators {
   static String? validatePhone(String? value) {
     if (value == null || value.isEmpty) return "Vui lòng nhập số điện thoại";
-    if (!RegExp(r'^\d{10}$').hasMatch(value)) return "Số điện thoại phải có 10 chữ số";
+    if (!RegExp(r'^\d{10}$').hasMatch(value))
+      return "Số điện thoại phải có 10 chữ số";
     return null;
   }
 
   static String? validateEmail(String? value) {
     if (value == null || value.isEmpty) return "Vui lòng nhập email";
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) return "Email không hợp lệ";
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value))
+      return "Email không hợp lệ";
     return null;
   }
 

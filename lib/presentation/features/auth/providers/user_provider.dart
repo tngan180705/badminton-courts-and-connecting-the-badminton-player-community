@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final userDataProvider = StreamProvider<Map<String, dynamic>?>((ref) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value(null);
-  
+
   return FirebaseFirestore.instance
       .collection('users')
       .doc(user.uid)
