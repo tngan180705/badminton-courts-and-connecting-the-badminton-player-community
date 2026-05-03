@@ -1,23 +1,11 @@
+import 'package:badminton_app/presentation/features/auth/providers/auth_state_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../providers/court_provider.dart';
 import '../widgets/court_card.dart';
 import '../../auth/providers/user_provider.dart';
-
-// 1. Provider lấy dữ liệu người dùng từ Firestore
-final userDataProvider = StreamProvider<Map<String, dynamic>?>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return Stream.value(null);
-  return FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .snapshots()
-      .map((snapshot) => snapshot.data());
-});
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -33,36 +21,41 @@ class HomeScreen extends ConsumerWidget {
         child: courtsAsync.when(
           data: (courts) => CustomScrollView(
             slivers: [
-              // Header lấy tên thật
+              /// ✅ HEADER
               SliverToBoxAdapter(
                 child: userAsync.when(
                   data: (data) => _buildUserHeader(
-                      context, data?['full_name'] ?? "Người dùng"),
-                  loading: () => _buildUserHeader(context, "..."),
-                  error: (_, __) => _buildUserHeader(context, "Lỗi tải"),
+                      context, ref, data?['full_name'] ?? "Người dùng"),
+                  loading: () => _buildUserHeader(context, ref, "..."),
+                  error: (_, __) => _buildUserHeader(context, ref, "Lỗi tải"),
                 ),
               ),
 
-              // Banner 4 ảnh tự động chạy
+              /// ✅ BANNER
               SliverToBoxAdapter(child: _buildMainBannerSlider()),
 
-              // Banner Gợi ý Robot
+              /// ✅ PROMOTION
               SliverToBoxAdapter(child: _buildPromotionBanner()),
 
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSizes.spaceMedium),
                   child: Center(
-                      child: Text("DANH SÁCH SÂN",
-                          style: TextStyle(fontWeight: FontWeight.bold))),
+                    child: Text(
+                      "DANH SÁCH SÂN",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
               ),
 
+              /// ✅ GRID
               SliverPadding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: AppSizes.screenPadding),
                 sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     mainAxisSpacing: AppSizes.spaceMedium,
                     crossAxisSpacing: AppSizes.spaceMedium,
@@ -74,62 +67,117 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(child: Text("Lỗi: $err")),
+          loading: () =>
+              const Center(child: CircularProgressIndicator()),
+          error: (err, stack) =>
+              Center(child: Text("Lỗi: $err")),
         ),
       ),
+
+      /// ✅ BOTTOM NAV
       bottomNavigationBar: BottomAppBar(
-        height: 65, // Chiều cao vừa đủ để icon không bị sát mép
+        height: 65,
         shape: const CircularNotchedRectangle(),
         notchMargin: 6.0,
-        color: Colors.white, // Đảm bảo nền trắng để nút Robot xanh nổi bật lên
-        elevation: 10, // Tạo đổ bóng nhẹ bên dưới
+        color: Colors.white,
+        elevation: 10,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildNavItem(Icons.home, "Trang chủ", true),
             _buildNavItem(Icons.people_alt_outlined, "Ghép nhóm", false),
-            const SizedBox(width: 40), // Chừa khe hở cho nút Robot lặn xuống
+            const SizedBox(width: 40),
             _buildNavItem(Icons.calendar_month_outlined, "Hoạt động", false),
             _buildNavItem(Icons.person_outline, "Hồ sơ", false),
           ],
         ),
       ),
+
+      /// ✅ FAB
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         backgroundColor: const Color(0xFF6B8E4E),
         elevation: 2,
-        child:
-            const Icon(Icons.smart_toy_outlined, color: Colors.white, size: 35),
+        child: const Icon(Icons.smart_toy_outlined,
+            color: Colors.white, size: 35),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation:
+          FloatingActionButtonLocation.centerDocked,
     );
   }
 
-  // --- CÁC HÀM BỔ TRỢ (WIDGETS) ---
-
-  Widget _buildUserHeader(BuildContext context, String name) {
+  // ================= HEADER =================
+  Widget _buildUserHeader(
+      BuildContext context, WidgetRef ref, String name) {
     return Padding(
       padding: const EdgeInsets.all(AppSizes.screenPadding),
       child: Row(
         children: [
-          const CircleAvatar(radius: 25, backgroundColor: Color(0xFF9BAB60)),
+          const CircleAvatar(
+            radius: 25,
+            backgroundColor: Color(0xFF9BAB60),
+          ),
           const SizedBox(width: 12),
-          Text("Chào, $name!",
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+
+          Text(
+            "Chào, $name!",
+            style: const TextStyle(
+                fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+
           const Spacer(),
+
+          /// 🔥 LOGOUT BUTTON
           IconButton(
-              icon: const Icon(Icons.logout_rounded),
-              onPressed: () => FirebaseAuth.instance.signOut()),
+            icon: const Icon(Icons.logout_rounded,
+                color: Colors.redAccent),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Đăng xuất'),
+                  content: const Text(
+                      'Bạn muốn thoát khỏi ứng dụng?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Ở lại'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        Navigator.pop(context);
+
+                        try {
+                          await ref.read(authControllerProvider).logout();
+                          // ✅ Không cần Navigator → MyApp sẽ tự rebuild
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Logout lỗi: $e")),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text(
+                        'Thoát',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
+  // ================= BANNER =================
   Widget _buildMainBannerSlider() {
     final List<String> imgList = [
       'assets/images/banner1.jpg',
@@ -140,87 +188,71 @@ class HomeScreen extends ConsumerWidget {
 
     return CarouselSlider(
       options: CarouselOptions(
-        height: 240.0, // Chiều cao banner
-        autoPlay: true, // Tự động chạy
+        height: 240.0,
+        autoPlay: true,
         autoPlayInterval: const Duration(seconds: 4),
-        viewportFraction: 0.9, // Độ rộng của mỗi ảnh so với màn hình
-        enlargeCenterPage: true, // Hiệu ứng phóng to ảnh ở giữa
+        viewportFraction: 0.9,
+        enlargeCenterPage: true,
       ),
       items: imgList.map((imgPath) {
-        return Builder(
-          builder: (BuildContext context) {
-            return Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: ClipRRect(
-                // Bo góc cho hình ảnh
-                borderRadius: BorderRadius.circular(20),
-                child: Image.asset(
-                  imgPath, // HIỂN THỊ ẢNH THẬT
-                  fit: BoxFit.cover,
-                  alignment: Alignment.center,
-                  width: double.infinity,
-                  height: 220.0,
-                  // Xử lý khi không tìm thấy file ảnh
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[300],
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.broken_image,
-                          color: Colors.grey, size: 50),
-                    );
-                  },
-                ),
-              ),
-            );
-          },
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Image.asset(
+            imgPath,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            errorBuilder: (_, __, ___) => Container(
+              color: Colors.grey[300],
+              child: const Icon(Icons.broken_image),
+            ),
+          ),
         );
       }).toList(),
     );
   }
 
+  // ================= PROMO =================
   Widget _buildPromotionBanner() {
     return Container(
       margin: const EdgeInsets.all(AppSizes.screenPadding),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFD4D984).withOpacity(0.8),
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white, width: 1),
       ),
       child: Row(
         children: [
-          const Icon(Icons.smart_toy_outlined, color: Colors.black54),
+          const Icon(Icons.smart_toy_outlined),
           const SizedBox(width: 10),
           const Expanded(
-            child: Text("Thứ 3 rồi, đặt sân số 2 lúc 18h nhé?",
-                style: TextStyle(fontStyle: FontStyle.italic, fontSize: 13)),
+            child: Text(
+              "Thứ 3 rồi, đặt sân số 2 lúc 18h nhé?",
+              style: TextStyle(fontSize: 13),
+            ),
           ),
           ElevatedButton(
             onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6B8E4E),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20)),
-            ),
-            child: const Text("Đặt ngay",
-                style: TextStyle(color: Colors.white, fontSize: 12)),
+            child: const Text("Đặt ngay"),
           )
         ],
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, bool isActive) {
+  // ================= NAV =================
+  Widget _buildNavItem(
+      IconData icon, String label, bool isActive) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: isActive ? Colors.green : Colors.black54),
+        Icon(icon,
+            color: isActive ? Colors.green : Colors.black54),
         Text(label,
             style: TextStyle(
-                fontSize: 10, color: isActive ? Colors.green : Colors.black54)),
+                fontSize: 10,
+                color:
+                    isActive ? Colors.green : Colors.black54)),
       ],
     );
   }
