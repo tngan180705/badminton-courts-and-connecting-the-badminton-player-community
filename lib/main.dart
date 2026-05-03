@@ -33,34 +33,34 @@ class MyApp extends ConsumerWidget {
       title: 'Badminton Community',
 
       home: authState.when(
-  data: (firebaseUser) {
-    if (firebaseUser == null) {
-      return LoginScreen(); // Firebase chưa login -> về Login
-    }
+        data: (firebaseUser) {
+          if (firebaseUser == null) {
+            return LoginScreen(); // Firebase chưa login -> về Login
+          }
 
-    final userAsync = ref.watch(currentUserProvider);
+          final userAsync = ref.watch(currentUserProvider);
 
-    return userAsync.when(
-      data: (userModel) {
-        // Nếu đã có Firebase User nhưng không tìm thấy UserModel trong Firestore
-        if (userModel == null) {
-          // Có thể Firebase User vừa tạo, Firestore chưa kịp tạo document
-          // Hoặc bạn có thể trả về LoginScreen hoặc một màn hình tạo Profile
-          return LoginScreen(); 
-        }
+          return userAsync.when(
+            data: (userModel) {
+              // Nếu đã có Firebase User nhưng không tìm thấy UserModel trong Firestore
+              if (userModel == null) {
+                // Có thể Firebase User vừa tạo, Firestore chưa kịp tạo document
+                // Hoặc bạn có thể trả về LoginScreen hoặc một màn hình tạo Profile
+                return LoginScreen();
+              }
 
-        if (userModel.role == 'admin') {
-          return const AdminCourtListScreen();
-        }
-        return const HomeScreen();
-      },
-      loading: () => const LoadingScreen(),
-      error: (e, _) => ErrorScreen(message: "Lỗi tải dữ liệu: $e"),
-    );
-  },
-  loading: () => const LoadingScreen(),
-  error: (e, _) => ErrorScreen(message: "Lỗi Firebase: $e"),
-),
+              if (userModel.role == 'admin') {
+                return const AdminCourtListScreen();
+              }
+              return const HomeScreen();
+            },
+            loading: () => const LoadingScreen(),
+            error: (e, _) => ErrorScreen(message: "Lỗi tải dữ liệu: $e"),
+          );
+        },
+        loading: () => const LoadingScreen(),
+        error: (e, _) => ErrorScreen(message: "Lỗi Firebase: $e"),
+      ),
     );
   }
 }
@@ -90,8 +90,7 @@ class ErrorScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(message,
-                style: const TextStyle(color: Colors.red)),
+            Text(message, style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 10),
             ElevatedButton(
               onPressed: () async {

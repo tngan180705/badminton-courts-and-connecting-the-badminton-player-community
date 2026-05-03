@@ -42,7 +42,7 @@ class UserRepository {
       fullName: fullName,
       phone: phone,
       gender: gender,
-      avatarUrl: "", 
+      avatarUrl: "",
       role: "player", // Mặc định là player
       skillLevel: skillLevel,
       reliabilityScore: 100,
@@ -60,10 +60,14 @@ class UserRepository {
 
   Future<void> _uploadAndSyncAvatar(String uid, File file) async {
     try {
-      final ref = FirebaseStorage.instance.ref().child('avatars').child('$uid.jpg');
+      final ref =
+          FirebaseStorage.instance.ref().child('avatars').child('$uid.jpg');
       await ref.putFile(file);
       String downloadUrl = await ref.getDownloadURL();
-      await _db.collection('users').doc(uid).update({'avatar_url': downloadUrl});
+      await _db
+          .collection('users')
+          .doc(uid)
+          .update({'avatar_url': downloadUrl});
     } catch (e) {
       print("Lỗi xử lý ảnh ngầm: $e");
     }

@@ -73,16 +73,17 @@ class AdminCourtCard extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // Hiển thị Địa chỉ
-                  _buildInfoRow(Icons.location_on_outlined, "Địa chỉ: ${court.address}"),
-                  
+                  _buildInfoRow(
+                      Icons.location_on_outlined, "Địa chỉ: ${court.address}"),
+
                   // Hiển thị Giá tiền (đã format)
-                  _buildInfoRow(Icons.payments_outlined, 
+                  _buildInfoRow(Icons.payments_outlined,
                       "Giá: ${currencyFormatter.format(court.pricePerHour)}đ/h"),
-                  
+
                   // HIỂN THỊ GIỜ HOẠT ĐỘNG (Phần bạn muốn thêm)
-                  _buildInfoRow(Icons.access_time, 
+                  _buildInfoRow(Icons.access_time,
                       "Giờ: ${court.openTime} - ${court.closeTime}"),
                 ],
               ),
@@ -103,7 +104,8 @@ class AdminCourtCard extends ConsumerWidget {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  icon:
+                      const Icon(Icons.delete_outline, color: Colors.redAccent),
                   onPressed: () => _showDeleteDialog(context, ref),
                 ),
               ],
@@ -142,10 +144,13 @@ class AdminCourtCard extends ConsumerWidget {
         title: const Text('Xác nhận xóa'),
         content: Text('Bạn có muốn xóa sân "${court.name}" không?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
           TextButton(
             onPressed: () async {
-              await ref.read(adminCourtActionProvider.notifier).removeCourt(court.courtId);
+              await ref
+                  .read(adminCourtActionProvider.notifier)
+                  .removeCourt(court.courtId);
               if (context.mounted) Navigator.pop(ctx);
             },
             child: const Text('Xóa', style: TextStyle(color: Colors.red)),

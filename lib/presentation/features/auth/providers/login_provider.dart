@@ -1,8 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-final loginStateProvider =
-    StateProvider<AsyncValue<UserCredential?>>(
+final loginStateProvider = StateProvider<AsyncValue<UserCredential?>>(
   (ref) => const AsyncData(null),
 );
 
@@ -20,8 +19,7 @@ class LoginNotifier {
         password: password,
       );
 
-      ref.read(loginStateProvider.notifier).state =
-          AsyncData(userCredential);
+      ref.read(loginStateProvider.notifier).state = AsyncData(userCredential);
     } on FirebaseAuthException catch (e) {
       String message = "Đã xảy ra lỗi";
 

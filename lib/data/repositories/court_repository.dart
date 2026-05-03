@@ -61,13 +61,13 @@ class CourtRepository {
 
   Future<void> deleteCourt(String courtId) async {
     await _firestore.collection('courts').doc(courtId).delete();
-    
+
     // Xóa các sub_courts liên quan
     final subCourts = await _firestore
         .collection('sub_courts')
         .where('court_id', isEqualTo: courtId)
         .get();
-        
+
     for (var doc in subCourts.docs) {
       await doc.reference.delete();
     }
@@ -78,9 +78,9 @@ class CourtRepository {
   }
 
   Future<void> updateSubCourt(SubCourtModel subCourt) async {
-  await _firestore
-      .collection('sub_courts')
-      .doc(subCourt.subCourtId) // Đã đổi thành subCourtId cho khớp với Model
-      .update(subCourt.toFirestore());
-}
+    await _firestore
+        .collection('sub_courts')
+        .doc(subCourt.subCourtId) // Đã đổi thành subCourtId cho khớp với Model
+        .update(subCourt.toFirestore());
+  }
 }

@@ -54,8 +54,7 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: AppSizes.screenPadding),
                 sliver: SliverGrid(
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     mainAxisSpacing: AppSizes.spaceMedium,
                     crossAxisSpacing: AppSizes.spaceMedium,
@@ -71,10 +70,8 @@ class HomeScreen extends ConsumerWidget {
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
-          loading: () =>
-              const Center(child: CircularProgressIndicator()),
-          error: (err, stack) =>
-              Center(child: Text("Lỗi: $err")),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(child: Text("Lỗi: $err")),
         ),
       ),
 
@@ -102,17 +99,15 @@ class HomeScreen extends ConsumerWidget {
         onPressed: () {},
         backgroundColor: const Color(0xFF6B8E4E),
         elevation: 2,
-        child: const Icon(Icons.smart_toy_outlined,
-            color: Colors.white, size: 35),
+        child:
+            const Icon(Icons.smart_toy_outlined, color: Colors.white, size: 35),
       ),
-      floatingActionButtonLocation:
-          FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 
   // ================= HEADER =================
-  Widget _buildUserHeader(
-      BuildContext context, WidgetRef ref, String name) {
+  Widget _buildUserHeader(BuildContext context, WidgetRef ref, String name) {
     return Padding(
       padding: const EdgeInsets.all(AppSizes.screenPadding),
       child: Row(
@@ -125,23 +120,20 @@ class HomeScreen extends ConsumerWidget {
 
           Text(
             "Chào, $name!",
-            style: const TextStyle(
-                fontSize: 16, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
 
           const Spacer(),
 
           /// 🔥 LOGOUT BUTTON
           IconButton(
-            icon: const Icon(Icons.logout_rounded,
-                color: Colors.redAccent),
+            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
             onPressed: () {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text('Đăng xuất'),
-                  content: const Text(
-                      'Bạn muốn thoát khỏi ứng dụng?'),
+                  content: const Text('Bạn muốn thoát khỏi ứng dụng?'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
@@ -215,8 +207,7 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildPromotionBanner() {
     return Container(
       margin: const EdgeInsets.all(AppSizes.screenPadding),
-      padding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFD4D984).withOpacity(0.8),
         borderRadius: BorderRadius.circular(15),
@@ -241,18 +232,14 @@ class HomeScreen extends ConsumerWidget {
   }
 
   // ================= NAV =================
-  Widget _buildNavItem(
-      IconData icon, String label, bool isActive) {
+  Widget _buildNavItem(IconData icon, String label, bool isActive) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon,
-            color: isActive ? Colors.green : Colors.black54),
+        Icon(icon, color: isActive ? Colors.green : Colors.black54),
         Text(label,
             style: TextStyle(
-                fontSize: 10,
-                color:
-                    isActive ? Colors.green : Colors.black54)),
+                fontSize: 10, color: isActive ? Colors.green : Colors.black54)),
       ],
     );
   }

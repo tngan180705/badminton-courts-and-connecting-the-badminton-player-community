@@ -5,8 +5,8 @@ class AssetImagePicker extends StatefulWidget {
   final String? initialValue;
 
   const AssetImagePicker({
-    super.key, 
-    required this.onImageSelected, 
+    super.key,
+    required this.onImageSelected,
     this.initialValue,
   });
 
@@ -68,10 +68,11 @@ class _AssetImagePickerState extends State<AssetImagePicker> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(9),
                     child: Image.asset(
-                      imgPath, 
+                      imgPath,
                       fit: BoxFit.cover,
                       // Thêm errorBuilder để tránh crash app nếu sai đường dẫn
-                      errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.error)),
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Center(child: Icon(Icons.error)),
                     ),
                   ),
                 ),

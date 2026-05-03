@@ -5,19 +5,21 @@ import '../../../../../data/models/court_model.dart';
 import '../../../court/providers/court_provider.dart';
 
 // StreamProvider cho Admin (Tự động cập nhật UI khi xóa/sửa)
-final allCourtsStreamProvider = StreamProvider.autoDispose<List<CourtModel>>((ref) {
+final allCourtsStreamProvider =
+    StreamProvider.autoDispose<List<CourtModel>>((ref) {
   final repository = ref.watch(courtRepositoryProvider);
   return repository.watchAllCourts();
 });
 
 // StateNotifier điều khiển logic ghi dữ liệu
-final adminCourtActionProvider = StateNotifierProvider<AdminCourtNotifier, AsyncValue<void>>((ref) {
+final adminCourtActionProvider =
+    StateNotifierProvider<AdminCourtNotifier, AsyncValue<void>>((ref) {
   return AdminCourtNotifier(ref.watch(courtRepositoryProvider));
 });
 
 class AdminCourtNotifier extends StateNotifier<AsyncValue<void>> {
   final CourtRepository _repository;
-  
+
   AdminCourtNotifier(this._repository) : super(const AsyncValue.data(null));
 
   Future<void> addNewCourt(CourtModel court) async {

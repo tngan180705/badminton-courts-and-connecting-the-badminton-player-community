@@ -41,17 +41,19 @@ class AdminCourtListScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FE),
       appBar: AppBar(
-        title: const Text('Quản lý sân cầu lông', 
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: const Text('Quản lý sân cầu lông',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.logout, color: Colors.red), // Thêm nút Logout bên trái hoặc phải
+          icon: const Icon(Icons.logout,
+              color: Colors.red), // Thêm nút Logout bên trái hoặc phải
           onPressed: () => _showLogoutDialog(context),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_circle_outline, color: Colors.black, size: 30),
+            icon: const Icon(Icons.add_circle_outline,
+                color: Colors.black, size: 30),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AddEditCourtScreen()),
@@ -62,7 +64,8 @@ class AdminCourtListScreen extends ConsumerWidget {
       body: courtsAsync.when(
         data: (courts) {
           if (courts.isEmpty) {
-            return const Center(child: Text("Chưa có sân nào. Bấm (+) để thêm."));
+            return const Center(
+                child: Text("Chưa có sân nào. Bấm (+) để thêm."));
           }
           return ListView.builder(
             padding: const EdgeInsets.all(16),
