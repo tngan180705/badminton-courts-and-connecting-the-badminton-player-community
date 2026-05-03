@@ -17,56 +17,77 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _isLoading = false;
 
   Future<void> _resetPassword() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      HapticFeedback.mediumImpact();
+  if (_formKey.currentState!.validate()) {
+    setState(() => _isLoading = true);
+    HapticFeedback.mediumImpact();
 
-      try {
-        await FirebaseAuth.instance.sendPasswordResetEmail(
-          email: _emailController.text.trim(),
-        );
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: _emailController.text.trim(),
+      );
 
-        if (mounted) {
-          _showSuccessDialog();
-        }
-      } on FirebaseAuthException catch (e) {
-        String message = "Đã xảy ra lỗi";
-        if (e.code == 'user-not-found') message = "Email này chưa được đăng ký";
+      if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: AppColors.error),
-        );
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
+      _showSuccessDialog();
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      String message = "Đã xảy ra lỗi";
+      if (e.code == 'user-not-found') {
+        message = "Email này chưa được đăng ký";
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
+}
 
   void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Kiểm tra Email",
-            style: TextStyle(
-                fontWeight: FontWeight.bold, color: AppColors.primary)),
-        content: const Text(
-            "Link đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư đến (hoặc thư rác) của bạn."),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Đóng dialog
-              Navigator.pop(context); // Quay lại màn hình Login
-            },
-            child: const Text("QUAY LẠI ĐĂNG NHẬP",
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: AppColors.secondary)),
-          ),
-        ],
-      ),
-    );
-  }
+  if (!mounted) return;
 
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      title: const Text(
+        "Kiểm tra Email",
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: AppColors.primary,
+        ),
+      ),
+      content: const Text(
+        "Link đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư đến (hoặc thư rác) của bạn.",
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            Navigator.pop(context);
+          },
+          child: const Text(
+            "QUAY LẠI ĐĂNG NHẬP",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppColors.secondary,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(

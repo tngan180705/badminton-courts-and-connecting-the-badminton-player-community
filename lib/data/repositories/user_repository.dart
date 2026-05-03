@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 
 class UserRepository {
@@ -17,7 +18,7 @@ class UserRepository {
       }
       return null;
     } catch (e) {
-      print('Lỗi lấy thông tin user: $e');
+      debugPrint('Lỗi lấy thông tin user: $e');
       return null;
     }
   }
@@ -69,7 +70,7 @@ class UserRepository {
           .doc(uid)
           .update({'avatar_url': downloadUrl});
     } catch (e) {
-      print("Lỗi xử lý ảnh ngầm: $e");
+      debugPrint("Lỗi xử lý ảnh ngầm: $e");
     }
   }
 }

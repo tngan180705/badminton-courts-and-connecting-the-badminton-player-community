@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/court_model.dart';
 import '../models/sub_court_model.dart';
 
@@ -15,7 +16,7 @@ class CourtRepository {
           .map((doc) => CourtModel.fromFirestore(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      print('Error fetching all courts: $e');
+      debugPrint('Error fetching all courts: $e');
       return [];
     }
   }
@@ -41,7 +42,7 @@ class CourtRepository {
           .map((doc) => SubCourtModel.fromFirestore(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      print('Error fetching sub-courts: $e');
+      debugPrint('Error fetching sub-courts: $e');
       return [];
     }
   }
