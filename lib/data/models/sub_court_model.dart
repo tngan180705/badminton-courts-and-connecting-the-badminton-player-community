@@ -11,17 +11,15 @@ class SubCourtModel {
     required this.isActive,
   });
 
-  // Chuyển đổi từ dữ liệu Firestore sang Object Flutter
   factory SubCourtModel.fromFirestore(Map<String, dynamic> json, String id) {
     return SubCourtModel(
       subCourtId: id,
-      courtId: json['court_id'] as String? ?? '',
-      subCourtName: json['sub_court_name'] as String? ?? 'Sân chưa đặt tên',
-      // Ép kiểu bool rõ ràng để tránh lỗi nếu Firebase lưu dạng khác
+      // Fix: dùng toString() thay vì ép kiểu trực tiếp
+      courtId: json['court_id']?.toString() ?? '',
+      subCourtName: json['sub_court_name']?.toString() ?? 'Sân chưa đặt tên',
       isActive: json['is_active'] is bool ? json['is_active'] as bool : true,
     );
   }
-
   // Chuyển đổi từ Object Flutter sang Map để lưu lên Firestore
   Map<String, dynamic> toFirestore() {
     return {

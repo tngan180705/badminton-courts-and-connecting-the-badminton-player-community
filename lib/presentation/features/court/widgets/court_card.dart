@@ -1,31 +1,31 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_sizes.dart';
-import '../../../../data/models/court_model.dart';
-import '../pages/court_detail_screen.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../data/models/sub_court_model.dart';
 
 class CourtCard extends StatelessWidget {
-  final CourtModel court;
-  const CourtCard({super.key, required this.court});
+  final SubCourtModel subCourt;
+  final String courtName; // Tên cửa hàng để hiển thị
+  final VoidCallback? onTap;
+
+  const CourtCard({
+    super.key,
+    required this.subCourt,
+    required this.courtName,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // XỬ LÝ TÊN FILE:
-    // 1. .trim() để xóa khoảng trắng thừa ở cuối tên (Firestore của bạn đang bị dư dấu cách)
-    // 2. Chuyển chữ thường, xóa dấu cách giữa, đổi 'â' thành 'a'
-    String fileName = court.name
+    // Tạo tên file ảnh từ tên sân con (vd: "san1.jpg")
+    final fileName = subCourt.subCourtName
         .trim()
         .toLowerCase()
         .replaceAll(' ', '')
         .replaceAll('â', 'a');
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => CourtDetailScreen(court: court)),
-        );
-      },
+      onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -40,6 +40,7 @@ class CourtCard extends StatelessWidget {
         ),
         child: Column(
           children: [
+            // Ảnh sân
             Expanded(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(
@@ -48,43 +49,60 @@ class CourtCard extends StatelessWidget {
                   'assets/images/$fileName.jpg',
                   fit: BoxFit.cover,
                   width: double.infinity,
-                  errorBuilder: (context, error, stackTrace) {
-                    // Thử tìm file .png nếu không có .jpg
-                    return Image.asset(
-                      'assets/images/$fileName.png',
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      errorBuilder: (context, _, __) => Container(
-                        color: Colors.grey[100],
-                        width: double.infinity,
-                        // Dùng Center để icon không bị kéo giãn theo chiều dọc
-                        child: const Center(
-                          child: Icon(Icons.image_not_supported,
-                              color: Colors.grey, size: 40),
-                        ),
-                      ),
-                    );
-                  },
+                  errorBuilder: (_, __, ___) => Container(
+                    color: Colors.grey[100],
+                    width: double.infinity,
+                    child: const Center(
+                      child: Icon(Icons.sports_tennis,
+                          color: AppColors.secondary, size: 40),
+                    ),
+                  ),
                 ),
               ),
             ),
+
+            // Thông tin
             Padding(
               padding: const EdgeInsets.all(AppSizes.spaceSmall),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    court.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    subCourt.subCourtName,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    courtName,
+                    style: const TextStyle(
+                        color: AppColors.textSecondary, fontSize: 11),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    "150k/giờ", // Bạn có thể thay bằng court.price nếu có
-                    style: TextStyle(
-                        color: Colors.green,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600),
+                  // Badge trạng thái
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: subCourt.isActive
+                          ? AppColors.courtAvailable.withOpacity(0.1)
+                          : AppColors.courtBooked.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      subCourt.isActive ? 'Hoạt động' : 'Tạm đóng',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: subCourt.isActive
+                            ? AppColors.courtAvailable
+                            : AppColors.courtBooked,
+                      ),
+                    ),
                   ),
                 ],
               ),

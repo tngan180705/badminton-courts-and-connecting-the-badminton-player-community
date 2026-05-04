@@ -4,11 +4,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../providers/court_provider.dart';
 import '../widgets/court_card.dart';
+import '../pages/court_detail_screen.dart';
 import '../../auth/providers/user_provider.dart';
+import '../../../common_widgets/main_header.dart';
+import '../../../common_widgets/main_footer.dart';
+import '../../../features/community/pages/community_screen.dart';
 
-// 1. Provider lấy dữ liệu người dùng từ Firestore
 final userDataProvider = StreamProvider<Map<String, dynamic>?>((ref) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value(null);
@@ -24,40 +28,71 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final courtsAsync = ref.watch(allCourtsProvider);
+    final subCourtsAsync = ref.watch(homeSubCourtsProvider);
+    final courtAsync = ref.watch(singleCourtProvider);
     final userAsync = ref.watch(userDataProvider);
 
+    // Lấy tên cửa hàng để truyền vào CourtCard
+    final courtName = courtAsync.maybeWhen(
+      data: (court) => court?.name ?? '',
+      orElse: () => '',
+    );
+
     return Scaffold(
-      backgroundColor: const Color(0xFFE5E5CA),
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: courtsAsync.when(
-          data: (courts) => CustomScrollView(
+        child: subCourtsAsync.when(
+          data: (subCourts) => CustomScrollView(
             slivers: [
-              // Header lấy tên thật
+              // Header
               SliverToBoxAdapter(
                 child: userAsync.when(
-                  data: (data) => _buildUserHeader(
-                      context, data?['full_name'] ?? "Người dùng"),
-                  loading: () => _buildUserHeader(context, "..."),
-                  error: (_, __) => _buildUserHeader(context, "Lỗi tải"),
+                  data: (data) =>
+                      MainHeader(userName: data?['full_name'] ?? 'Người dùng'),
+                  loading: () => const MainHeader(userName: '...'),
+                  error: (_, __) => const MainHeader(userName: 'Người dùng'),
                 ),
               ),
 
-              // Banner 4 ảnh tự động chạy
+              // Banner slider
               SliverToBoxAdapter(child: _buildMainBannerSlider()),
 
-              // Banner Gợi ý Robot
+              // Banner gợi ý AI
               SliverToBoxAdapter(child: _buildPromotionBanner()),
 
-              const SliverToBoxAdapter(
+              // Tiêu đề + tên cửa hàng
+              SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSizes.spaceMedium),
-                  child: Center(
-                      child: Text("DANH SÁCH SÂN",
-                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: AppSizes.spaceMedium,
+                      horizontal: AppSizes.screenPadding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Center(
+                        child: Text(
+                          'DANH SÁCH SÂN',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      if (courtName.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Center(
+                          child: Text(
+                            courtName,
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
 
+              // Grid sub_courts
               SliverPadding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: AppSizes.screenPadding),
@@ -69,64 +104,54 @@ class HomeScreen extends ConsumerWidget {
                     childAspectRatio: 0.8,
                   ),
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) => CourtCard(court: courts[index]),
-                    childCount: courts.length,
+                    (context, index) => CourtCard(
+                      subCourt: subCourts[index],
+                      courtName: courtName,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CourtDetailScreen(
+                              subCourt: subCourts[index],
+                              courtName: courtName,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    childCount: subCourts.length,
                   ),
                 ),
               ),
+
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(child: Text("Lỗi: $err")),
+          error: (err, stack) => Center(child: Text('Lỗi: $err')),
         ),
       ),
-      bottomNavigationBar: BottomAppBar(
-        height: 65, // Chiều cao vừa đủ để icon không bị sát mép
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 6.0,
-        color: Colors.white, // Đảm bảo nền trắng để nút Robot xanh nổi bật lên
-        elevation: 10, // Tạo đổ bóng nhẹ bên dưới
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildNavItem(Icons.home, "Trang chủ", true),
-            _buildNavItem(Icons.people_alt_outlined, "Ghép nhóm", false),
-            const SizedBox(width: 40), // Chừa khe hở cho nút Robot lặn xuống
-            _buildNavItem(Icons.calendar_month_outlined, "Hoạt động", false),
-            _buildNavItem(Icons.person_outline, "Hồ sơ", false),
-          ],
-        ),
+      bottomNavigationBar: MainFooter(
+        currentIndex: 0,
+        onTap: (index) {
+          if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CommunityScreen()),
+            );
+          }
+        },
       ),
+      // 👇 BẮT BUỘC PHẢI CÓ
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: const Color(0xFF6B8E4E),
-        elevation: 2,
-        child:
-            const Icon(Icons.smart_toy_outlined, color: Colors.white, size: 35),
+        onPressed: () {
+          // TODO: AI sau
+        },
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
       ),
+
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-    );
-  }
-
-  // --- CÁC HÀM BỔ TRỢ (WIDGETS) ---
-
-  Widget _buildUserHeader(BuildContext context, String name) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSizes.screenPadding),
-      child: Row(
-        children: [
-          const CircleAvatar(radius: 25, backgroundColor: Color(0xFF9BAB60)),
-          const SizedBox(width: 12),
-          Text("Chào, $name!",
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const Spacer(),
-          IconButton(
-              icon: const Icon(Icons.logout_rounded),
-              onPressed: () => FirebaseAuth.instance.signOut()),
-        ],
-      ),
     );
   }
 
@@ -140,30 +165,26 @@ class HomeScreen extends ConsumerWidget {
 
     return CarouselSlider(
       options: CarouselOptions(
-        height: 240.0, // Chiều cao banner
-        autoPlay: true, // Tự động chạy
+        height: 240.0,
+        autoPlay: true,
         autoPlayInterval: const Duration(seconds: 4),
-        viewportFraction: 0.9, // Độ rộng của mỗi ảnh so với màn hình
-        enlargeCenterPage: true, // Hiệu ứng phóng to ảnh ở giữa
+        viewportFraction: 0.9,
+        enlargeCenterPage: true,
       ),
       items: imgList.map((imgPath) {
         return Builder(
           builder: (BuildContext context) {
             return Container(
               width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-              ),
+              decoration:
+                  BoxDecoration(borderRadius: BorderRadius.circular(20)),
               child: ClipRRect(
-                // Bo góc cho hình ảnh
                 borderRadius: BorderRadius.circular(20),
                 child: Image.asset(
-                  imgPath, // HIỂN THỊ ẢNH THẬT
+                  imgPath,
                   fit: BoxFit.cover,
-                  alignment: Alignment.center,
                   width: double.infinity,
                   height: 220.0,
-                  // Xử lý khi không tìm thấy file ảnh
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
                       color: Colors.grey[300],
@@ -186,7 +207,7 @@ class HomeScreen extends ConsumerWidget {
       margin: const EdgeInsets.all(AppSizes.screenPadding),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFD4D984).withOpacity(0.8),
+        color: AppColors.accent.withOpacity(0.8),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: Colors.white, width: 1),
       ),
@@ -195,33 +216,23 @@ class HomeScreen extends ConsumerWidget {
           const Icon(Icons.smart_toy_outlined, color: Colors.black54),
           const SizedBox(width: 10),
           const Expanded(
-            child: Text("Thứ 3 rồi, đặt sân số 2 lúc 18h nhé?",
-                style: TextStyle(fontStyle: FontStyle.italic, fontSize: 13)),
+            child: Text(
+              'Thứ 3 rồi, đặt sân số 2 lúc 18h nhé?',
+              style: TextStyle(fontStyle: FontStyle.italic, fontSize: 13),
+            ),
           ),
           ElevatedButton(
             onPressed: () {},
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6B8E4E),
+              backgroundColor: AppColors.primary,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20)),
             ),
-            child: const Text("Đặt ngay",
+            child: const Text('Đặt ngay',
                 style: TextStyle(color: Colors.white, fontSize: 12)),
-          )
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildNavItem(IconData icon, String label, bool isActive) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: isActive ? Colors.green : Colors.black54),
-        Text(label,
-            style: TextStyle(
-                fontSize: 10, color: isActive ? Colors.green : Colors.black54)),
-      ],
     );
   }
 }
