@@ -1,14 +1,22 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'auth_state_provider.dart';
 
-final userDataProvider = StreamProvider<Map<String, dynamic>?>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return Stream.value(null);
+final userDataProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
+  final authState = ref.watch(authStateChangesProvider);
 
-  return FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .snapshots()
-      .map((snapshot) => snapshot.data());
+  return authState.when(
+    data: (user) async {
+      if (user == null) return null;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      return doc.data();
+    },
+    loading: () => null,
+    error: (_, __) => null,
+  );
 });

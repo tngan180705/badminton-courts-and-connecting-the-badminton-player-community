@@ -26,41 +26,63 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           email: _emailController.text.trim(),
         );
 
-        if (mounted) {
-          _showSuccessDialog();
-        }
+        if (!mounted) return;
+
+        _showSuccessDialog();
       } on FirebaseAuthException catch (e) {
+        if (!mounted) return;
+
         String message = "Đã xảy ra lỗi";
-        if (e.code == 'user-not-found') message = "Email này chưa được đăng ký";
+        if (e.code == 'user-not-found') {
+          message = "Email này chưa được đăng ký";
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text(message),
+            backgroundColor: AppColors.error,
+          ),
         );
       } finally {
-        if (mounted) setState(() => _isLoading = false);
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
 
   void _showSuccessDialog() {
+    if (!mounted) return;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Kiểm tra Email",
-            style: TextStyle(
-                fontWeight: FontWeight.bold, color: AppColors.primary)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text(
+          "Kiểm tra Email",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.primary,
+          ),
+        ),
         content: const Text(
-            "Link đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư đến (hoặc thư rác) của bạn."),
+          "Link đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư đến (hoặc thư rác) của bạn.",
+        ),
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Đóng dialog
-              Navigator.pop(context); // Quay lại màn hình Login
+              Navigator.pop(context);
+              Navigator.pop(context);
             },
-            child: const Text("QUAY LẠI ĐĂNG NHẬP",
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: AppColors.secondary)),
+            child: const Text(
+              "QUAY LẠI ĐĂNG NHẬP",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.secondary,
+              ),
+            ),
           ),
         ],
       ),

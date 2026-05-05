@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/utils/validators.dart';
-import '../../../../../core/constants/app_sizes.dart'; // Sử dụng AppSizes cho chuẩn
+// Sử dụng AppSizes cho chuẩn
 import '../providers/login_provider.dart';
 import '../pages/register_screen.dart';
 import '../pages/forgot_password_screen.dart';
@@ -72,7 +72,7 @@ class LoginScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(50),
                       boxShadow: [
                         BoxShadow(
-                            color: AppColors.primary.withOpacity(0.2),
+                            color: AppColors.primary.withValues(alpha: 0.2),
                             blurRadius: 10)
                       ]),
                   child: const Icon(Icons.sports_tennis,

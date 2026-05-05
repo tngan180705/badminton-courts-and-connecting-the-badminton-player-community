@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../../core/constants/app_colors.dart';
-import '../../../../../core/constants/app_sizes.dart'; // Dùng cho đồng bộ
+// Dùng cho đồng bộ
 import '../../../../../core/utils/validators.dart';
 import '../providers/register_provider.dart';
 
@@ -153,7 +153,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             backgroundColor: Colors.white,
             child: CircleAvatar(
               radius: 62,
-              backgroundColor: AppColors.secondary.withOpacity(0.2),
+              backgroundColor: AppColors.secondary.withValues(alpha: 0.2),
               backgroundImage:
                   _imageFile != null ? FileImage(_imageFile!) : null,
               child: _imageFile == null
@@ -201,7 +201,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       children: [
         Expanded(
           child: DropdownButtonFormField<String>(
-            value: _selectedGender,
+            initialValue: _selectedGender,
             decoration: InputDecoration(
                 filled: true,
                 fillColor: Colors.white,
@@ -219,7 +219,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: DropdownButtonFormField<String>(
-            value: _selectedSkill,
+            initialValue: _selectedSkill,
             isExpanded: true,
             decoration: InputDecoration(
                 filled: true,

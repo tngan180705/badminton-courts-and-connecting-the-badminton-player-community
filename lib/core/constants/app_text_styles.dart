@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart'; // Sử dụng AppColors từ constants [cite: 24]
+import 'app_colors.dart';
 
 class AppTextStyles {
   AppTextStyles._();
 
   static const String fontFamily = 'Roboto';
 
-  // Headings theo đúng màu Primary của dự án
   static const heading1 = TextStyle(
     fontSize: 32,
     fontWeight: FontWeight.bold,
@@ -22,5 +21,11 @@ class AppTextStyles {
   static const bodyMedium = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.normal,
+    color: AppColors.textPrimary,
+  );
+
+  static const bodySmall = TextStyle(
+    fontSize: 12,
+    color: AppColors.textSecondary,
   );
 }
