@@ -6,6 +6,7 @@ class MatchPostModel {
   final String description;
   final int slotsNeeded;
   final String status;
+  final String skillLevel;
   final DateTime createdAt;
 
   MatchPostModel({
@@ -16,6 +17,7 @@ class MatchPostModel {
     required this.description,
     required this.slotsNeeded,
     required this.status,
+    required this.skillLevel,
     required this.createdAt,
   });
 
@@ -28,9 +30,22 @@ class MatchPostModel {
       description: json['description'] ?? '',
       slotsNeeded: json['slots_needed'] ?? 0,
       status: json['status'] ?? 'open',
+      skillLevel: json['skill_level'] ?? 'Tất cả',
       createdAt: (json['created_at'] != null)
           ? json['created_at'].toDate()
           : DateTime.now(),
     );
+  }
+  Map<String, dynamic> toFirestore() {
+    return {
+      'host_id': hostId,
+      'booking_id': bookingId,
+      'title': title,
+      'description': description,
+      'slots_needed': slotsNeeded,
+      'status': status,
+      'skill_level': skillLevel,
+      'created_at': createdAt,
+    };
   }
 }

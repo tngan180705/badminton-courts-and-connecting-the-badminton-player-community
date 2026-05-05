@@ -3,28 +3,31 @@ import '../../../../data/repositories/court_repository.dart';
 import '../../../../data/models/court_model.dart';
 import '../../../../data/models/sub_court_model.dart';
 
-// 1. Provider cung cấp instance của CourtRepository
-// Điều này giúp dễ dàng thay thế hoặc Mock khi viết Unit Test
 final courtRepositoryProvider = Provider<CourtRepository>((ref) {
   return CourtRepository();
 });
 
-// 2. FutureProvider lấy toàn bộ danh sách sân lớn
-// UI Home Screen sẽ watch provider này
-final allCourtsProvider = FutureProvider<List<CourtModel>>((ref) async {
-  // Lắng nghe repository
+// Lấy court đầu tiên (cửa hàng duy nhất)
+final singleCourtProvider = FutureProvider<CourtModel?>((ref) async {
   final repository = ref.watch(courtRepositoryProvider);
-
-  // Gọi hàm lấy dữ liệu từ Firebase mà bạn đã viết
-  return repository.getAllCourts();
+  final courts = await repository.getAllCourts();
+  return courts.isNotEmpty ? courts.first : null;
 });
 
-// 3. FutureProvider lấy danh sách sân con theo ID sân lớn
-// Sử dụng .family để có thể truyền tham số courtId từ UI vào
+// Lấy sub_courts của court đầu tiên — dùng cho HomeScreen
+final homeSubCourtsProvider = FutureProvider<List<SubCourtModel>>((ref) async {
+  final courtAsync = await ref.watch(singleCourtProvider.future);
+  if (courtAsync == null) return [];
+  final repository = ref.watch(courtRepositoryProvider);
+  return repository.getSubCourtsByCourtId(courtAsync.courtId);
+});
+
+// Giữ lại để dùng ở chỗ khác nếu cần
+final allCourtsProvider = FutureProvider<List<CourtModel>>((ref) async {
+  return ref.watch(courtRepositoryProvider).getAllCourts();
+});
+
 final subCourtsProvider =
     FutureProvider.family<List<SubCourtModel>, String>((ref, courtId) async {
-  final repository = ref.watch(courtRepositoryProvider);
-
-  // Gọi hàm lấy sân con dựa trên ID sân lớn
-  return repository.getSubCourtsByCourtId(courtId);
+  return ref.watch(courtRepositoryProvider).getSubCourtsByCourtId(courtId);
 });
