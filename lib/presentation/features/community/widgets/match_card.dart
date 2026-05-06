@@ -5,12 +5,16 @@ import '../../../../data/models/match_post_view_model.dart';
 
 class MatchCard extends StatelessWidget {
   final MatchPostViewModel match;
-  final VoidCallback onJoinPressed;
+  final bool isMyPost;
+  final VoidCallback? onJoinPressed;
+  final VoidCallback? onDetailPressed;
 
   const MatchCard({
     super.key,
     required this.match,
-    required this.onJoinPressed,
+    this.isMyPost = false,
+    this.onJoinPressed,
+    this.onDetailPressed,
   });
 
   @override
@@ -45,8 +49,15 @@ class MatchCard extends StatelessWidget {
               CircleAvatar(
                 radius: 22,
                 backgroundColor: AppColors.secondary.withOpacity(0.3),
-                child: const Icon(Icons.person,
-                    color: AppColors.secondary, size: 24),
+                backgroundImage: match.hostAvatarUrl != null &&
+                        match.hostAvatarUrl!.isNotEmpty
+                    ? NetworkImage(match.hostAvatarUrl!)
+                    : null,
+                child: (match.hostAvatarUrl == null ||
+                        match.hostAvatarUrl!.isEmpty)
+                    ? const Icon(Icons.person,
+                        color: AppColors.secondary, size: 24)
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -54,7 +65,7 @@ class MatchCard extends StatelessWidget {
                   match.hostName,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 17,
                     color: AppColors.textPrimary,
                   ),
                 ),
@@ -68,12 +79,15 @@ class MatchCard extends StatelessWidget {
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Text('4.8',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 13)),
-                    SizedBox(width: 4),
-                    Icon(Icons.star, color: Colors.amber, size: 14),
+                  children: [
+                    Text(
+                      (match.hostReliabilityScore / 100 * 5)
+                          .toStringAsFixed(1), // 👈 tính từ reliability_score
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.star, color: Colors.amber, size: 14),
                   ],
                 ),
               ),
@@ -88,8 +102,8 @@ class MatchCard extends StatelessWidget {
                 child: Text(
                   '${match.courtName} - ${match.subCourtName}',
                   style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                 ),
@@ -105,7 +119,9 @@ class MatchCard extends StatelessWidget {
               Text(
                 '$dateStr, ${match.startTime} - ${match.endTime}',
                 style: const TextStyle(
-                    fontSize: 13, color: AppColors.textSecondary),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary),
               ),
             ],
           ),
@@ -118,7 +134,9 @@ class MatchCard extends StatelessWidget {
               Text(
                 'Trình độ: ${match.skillLevel}',
                 style: const TextStyle(
-                    fontSize: 13, color: AppColors.textSecondary),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary),
               ),
             ],
           ),
@@ -131,27 +149,44 @@ class MatchCard extends StatelessWidget {
                 'Còn thiếu ${match.slotsNeeded} người',
                 style: const TextStyle(
                   color: AppColors.error,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
                 ),
               ),
               const Spacer(),
-              ElevatedButton(
-                onPressed: onJoinPressed,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              // 👇 Hiển thị nút khác nhau
+              if (isMyPost && onDetailPressed != null)
+                ElevatedButton.icon(
+                  onPressed: onDetailPressed,
+                  icon: const Icon(Icons.info_outline, size: 16),
+                  label: const Text('Chi tiết'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                  ),
+                )
+              else if (!isMyPost && onJoinPressed != null)
+                ElevatedButton(
+                  onPressed: onJoinPressed,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                  ),
+                  child: const Text(
+                    'Tham gia',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
                 ),
-                child: const Text(
-                  'Tham gia',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-              ),
             ],
           ),
         ],

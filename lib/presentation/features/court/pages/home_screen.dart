@@ -28,6 +28,7 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(userDataProvider);
     final subCourtsAsync = ref.watch(homeSubCourtsProvider);
     final courtAsync = ref.watch(singleCourtProvider);
     final userAsync = ref.watch(userDataProvider);

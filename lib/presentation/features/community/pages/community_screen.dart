@@ -7,8 +7,11 @@ import '../widgets/match_card.dart';
 import '../providers/community_provider.dart';
 import '../../auth/providers/user_provider.dart';
 import '../widgets/post_match_bottom_sheet.dart';
-import '../../../../data/models/match_post_view_model.dart';
+import '../widgets/match_detail_dialog.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../data/models/match_post_view_model.dart';
+import 'match_join_handler.dart';
+import 'community_tab_bar.dart';
 
 class CommunityScreen extends ConsumerWidget {
   const CommunityScreen({super.key});
@@ -25,9 +28,9 @@ class CommunityScreen extends ConsumerWidget {
     final currentTab = ref.watch(communityTabProvider);
     final skillFilter = ref.watch(skillFilterProvider);
     final userAsync = ref.watch(userDataProvider);
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    // Lấy đúng kiểu AsyncValue<List<MatchPostViewModel>>
-    final AsyncValue<List<MatchPostViewModel>> postsAsync = currentTab == 1
+    final postsAsync = currentTab == 1
         ? ref.watch(myPostsProvider)
         : ref.watch(filteredPostsProvider);
 
@@ -52,80 +55,19 @@ class CommunityScreen extends ConsumerWidget {
               ),
             ),
           ),
-
-          // Dropdown filter trình độ
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: skillFilter,
-                    items: _skillLevels
-                        .map((s) => DropdownMenuItem(
-                              value: s,
-                              child:
-                                  Text(s, style: const TextStyle(fontSize: 13)),
-                            ))
-                        .toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        ref.read(skillFilterProvider.notifier).state = val;
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ),
-
+          _buildSkillFilter(ref, skillFilter),
           const SizedBox(height: 12),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _buildTabBar(context, ref, currentTab),
-          ),
-
-          const SizedBox(height: 8),
-
-          Expanded(
-            child: postsAsync.when(
-              data: (posts) => posts.isEmpty
-                  ? Center(
-                      child: Text(
-                        currentTab == 1
-                            ? 'Bạn chưa có trận nào trong 7 ngày tới'
-                            : 'Không có trận nào trong 7 ngày tới',
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.only(top: 8, bottom: 100),
-                      itemCount: posts.length,
-                      itemBuilder: (context, index) {
-                        final MatchPostViewModel match = posts[index];
-                        return MatchCard(
-                          match: match,
-                          onJoinPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Đã tham gia: ${match.title}'),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text('Lỗi: $err')),
+            child: CommunityTabBar(
+              currentTab: currentTab,
+              onTabChanged: (index) =>
+                  ref.read(communityTabProvider.notifier).state = index,
+              onPostPress: () => _openPostSheet(context),
             ),
           ),
+          const SizedBox(height: 8),
+          _buildPostsList(context, ref, postsAsync, currentTab, currentUserId),
         ],
       ),
       bottomNavigationBar: MainFooter(
@@ -135,13 +77,95 @@ class CommunityScreen extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: AI sau
-        },
+        onPressed: () => _openPostSheet(context),
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+    );
+  }
+
+  Widget _buildSkillFilter(WidgetRef ref, String skillFilter) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: skillFilter,
+              items: _skillLevels
+                  .map((s) => DropdownMenuItem(
+                        value: s,
+                        child: Text(s, style: const TextStyle(fontSize: 13)),
+                      ))
+                  .toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  ref.read(skillFilterProvider.notifier).state = val;
+                }
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPostsList(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<List<MatchPostViewModel>> postsAsync,
+    int currentTab,
+    String currentUserId,
+  ) {
+    return Expanded(
+      child: postsAsync.when(
+        data: (posts) => posts.isEmpty
+            ? Center(
+                child: Text(
+                  currentTab == 1
+                      ? 'Bạn chưa có trận nào trong 7 ngày tới'
+                      : 'Không có trận nào trong 7 ngày tới',
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.only(top: 8, bottom: 100),
+                itemCount: posts.length,
+                itemBuilder: (context, index) {
+                  final match = posts[index];
+                  final isMyPost = match.hostId == currentUserId ||
+                      match.memberIds.contains(currentUserId);
+
+                  return MatchCard(
+                    match: match,
+                    isMyPost: isMyPost,
+                    onJoinPressed: !isMyPost
+                        ? () => MatchJoinHandler.handleJoinMatch(
+                            context, ref, match)
+                        : null,
+                    onDetailPressed: isMyPost
+                        ? () => _showMatchDetail(context, match)
+                        : null,
+                  );
+                },
+              ),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text('Lỗi: $err')),
+      ),
+    );
+  }
+
+  void _showMatchDetail(BuildContext context, MatchPostViewModel match) {
+    showDialog(
+      context: context,
+      builder: (context) => MatchDetailDialog(match: match),
     );
   }
 
@@ -151,64 +175,6 @@ class CommunityScreen extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const PostMatchBottomSheet(),
-    );
-  }
-
-  Widget _buildTabBar(BuildContext context, WidgetRef ref, int currentTab) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildTab(context, ref, 0, currentTab, 'Tất cả trận'),
-        _buildTab(context, ref, 1, currentTab, 'Trận của tôi'),
-        _buildTab(context, ref, 2, currentTab, '+ Đăng tin mới'),
-      ],
-    );
-  }
-
-  Widget _buildTab(
-    BuildContext context,
-    WidgetRef ref,
-    int index,
-    int currentTab,
-    String label,
-  ) {
-    final isSelected = currentTab == index;
-
-    final bgColor = index == 2
-        ? const Color(0xFFDBD46B)
-        : (isSelected ? const Color(0xFF407F3E) : Colors.white);
-
-    final textColor = index == 2
-        ? Colors.black87
-        : (isSelected ? Colors.white : Colors.black54);
-
-    final borderColor = index == 2
-        ? const Color(0xFFDBD46B)
-        : (isSelected ? const Color(0xFF407F3E) : Colors.grey[300]!);
-
-    return GestureDetector(
-      onTap: () {
-        if (index == 2) {
-          return;
-        }
-        //ref.read(communityTabProvider.notifier).state = index;
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: borderColor),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: textColor,
-          ),
-        ),
-      ),
     );
   }
 }

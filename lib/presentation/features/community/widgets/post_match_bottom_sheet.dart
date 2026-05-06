@@ -191,7 +191,10 @@ class _PostMatchBottomSheetState extends ConsumerState<PostMatchBottomSheet> {
       final currentUser = FirebaseAuth.instance.currentUser!;
       final db = FirebaseFirestore.instance;
 
-      // 1. Tạo booking
+      // 1. Generate ID MP_XXX
+      final matchPostId = await _generateMatchPostId();
+
+      // 2. Tạo booking
       final bookingRef = await db.collection('bookings').add({
         'player_id': currentUser.uid,
         'sub_court_id': _selectedSubCourt!.subCourtId,
@@ -205,8 +208,8 @@ class _PostMatchBottomSheetState extends ConsumerState<PostMatchBottomSheet> {
         'created_at': Timestamp.now(),
       });
 
-      // 2. Tạo match_post
-      await db.collection('match_posts').add({
+      // 3. Tạo match_post với ID cụ thể
+      await db.collection('match_posts').doc(matchPostId).set({
         'host_id': currentUser.uid,
         'booking_id': bookingRef.id,
         'title': 'Tìm $_slotsNeeded người chơi',
@@ -217,8 +220,9 @@ class _PostMatchBottomSheetState extends ConsumerState<PostMatchBottomSheet> {
         'created_at': Timestamp.now(),
       });
 
-      // 3. Refresh
+      // 4. Refresh
       ref.invalidate(communityPostsProvider);
+      ref.invalidate(filteredPostsProvider);
       ref.invalidate(myPostsProvider);
 
       if (mounted) {
@@ -511,5 +515,28 @@ class _PostMatchBottomSheetState extends ConsumerState<PostMatchBottomSheet> {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     );
+  }
+
+// Thêm function này vào _PostMatchBottomSheetState
+  Future<String> _generateMatchPostId() async {
+    final db = FirebaseFirestore.instance;
+
+    // Lấy tất cả match_posts
+    final snapshot = await db.collection('match_posts').get();
+
+    // Tìm số lớn nhất hiện tại
+    int maxNum = 0;
+    for (final doc in snapshot.docs) {
+      final id = doc.id;
+      if (id.startsWith('MP_')) {
+        final numStr = id.replaceFirst('MP_', '');
+        final num = int.tryParse(numStr) ?? 0;
+        if (num > maxNum) maxNum = num;
+      }
+    }
+
+    // Increment và format
+    final nextNum = maxNum + 1;
+    return 'MP_${nextNum.toString().padLeft(3, '0')}';
   }
 }
