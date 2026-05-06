@@ -84,14 +84,36 @@ Future<List<MatchPostViewModel>> _fetchAndJoinPosts(
       if (!courtDoc.exists) continue;
       final court = courtDoc.data()!;
 
-      final hostDoc = await db.collection('users').doc(post.hostId).get();
-      final hostName = hostDoc.data()?['full_name'] ?? 'Người dùng';
-      print('=== hostName: $hostName');
+      // 👇 Query user theo firebase_uid
+      final userSnapshot = await db
+          .collection('users')
+          .where('firebase_uid', isEqualTo: post.hostId)
+          .limit(1)
+          .get();
+
+      var hostName = 'Người dùng';
+      String? hostAvatarUrl;
+      double hostReliabilityScore = 100.0;
+      if (userSnapshot.docs.isNotEmpty) {
+        hostName = userSnapshot.docs.first.data()['full_name'] ?? 'Người dùng';
+      }
+      print('=== hostId: ${post.hostId}, hostName: $hostName');
+
+      // 👇 Lấy danh sách members
+      final membersSnapshot = await db
+          .collection('match_members')
+          .where('match_post_id', isEqualTo: post.matchPostId)
+          .get();
+
+      final memberIds =
+          membersSnapshot.docs.map((doc) => doc['user_id'] as String).toList();
 
       results.add(MatchPostViewModel(
         matchPostId: post.matchPostId,
         hostId: post.hostId,
         hostName: hostName,
+        hostAvatarUrl: hostAvatarUrl,
+        hostReliabilityScore: hostReliabilityScore,
         title: post.title,
         courtName: court['name'] ?? '',
         subCourtName: subCourt['sub_court_name'] ?? '',
@@ -101,6 +123,7 @@ Future<List<MatchPostViewModel>> _fetchAndJoinPosts(
         slotsNeeded: post.slotsNeeded,
         status: post.status,
         skillLevel: post.skillLevel,
+        memberIds: memberIds,
       ));
       print('=== ✅ Thành công: ${post.matchPostId}');
     } catch (e) {
@@ -123,8 +146,7 @@ final communityPostsProvider =
   print('=== communityPostsProvider chạy');
   final postsSnapshot = await db
       .collection('match_posts')
-      .where('status', isEqualTo: 'open')
-      .get();
+      .where('status', whereIn: ['open', 'full']).get();
   print('=== match_posts count: ${postsSnapshot.docs.length}');
 
   return _fetchAndJoinPosts(db, postsSnapshot.docs, now, sevenDaysLater);
@@ -132,27 +154,69 @@ final communityPostsProvider =
 
 final myPostsProvider = FutureProvider<List<MatchPostViewModel>>((ref) async {
   final db = FirebaseFirestore.instance;
-  final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final currentUser = FirebaseAuth.instance.currentUser;
   final now = DateTime.now();
   final sevenDaysLater = now.add(const Duration(days: 7));
 
-  print('=== myPostsProvider chạy, userId: $currentUserId');
-  final postsSnapshot = await db
-      .collection('match_posts')
-      .where('status', isEqualTo: 'open')
-      .where('host_id', isEqualTo: currentUserId)
-      .get();
-  print('=== my match_posts count: ${postsSnapshot.docs.length}');
+  if (currentUser == null) return [];
 
-  return _fetchAndJoinPosts(db, postsSnapshot.docs, now, sevenDaysLater);
+  print('=== myPostsProvider chạy, firebaseUid: ${currentUser.uid}');
+
+  // 👇 Lấy trận mình host
+  final myHostedSnapshot = await db
+      .collection('match_posts')
+      .where('host_id', isEqualTo: currentUser.uid)
+      .get();
+
+  // 👇 Lấy trận mình join (từ match_members)
+  final myMembershipsSnapshot = await db
+      .collection('match_members')
+      .where('user_id', isEqualTo: currentUser.uid)
+      .get();
+
+  final myJoinedMatchIds = myMembershipsSnapshot.docs
+      .map((doc) => doc['match_post_id'] as String)
+      .toList();
+
+  // 👇 Lấy match_posts của những trận mình join
+  late final QuerySnapshot<Map<String, dynamic>> myJoinedSnapshot;
+  if (myJoinedMatchIds.isNotEmpty) {
+    myJoinedSnapshot = await db
+        .collection('match_posts')
+        .where(FieldPath.documentId, whereIn: myJoinedMatchIds)
+        .get();
+  } else {
+    myJoinedSnapshot = await db
+        .collection('match_posts')
+        .where('match_post_id', isEqualTo: 'nonexistent_id')
+        .get();
+  }
+
+  // 👇 Merge cả 2 danh sách + bỏ trùng
+  final allDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+  final uniqueIds = <String>{};
+
+  for (final doc in myHostedSnapshot.docs) {
+    if (uniqueIds.add(doc.id)) allDocs.add(doc);
+  }
+
+  for (final doc in myJoinedSnapshot.docs) {
+    if (uniqueIds.add(doc.id)) allDocs.add(doc);
+  }
+
+  print('=== my match_posts + joined count: ${allDocs.length}');
+
+  return _fetchAndJoinPosts(db, allDocs, now, sevenDaysLater);
 });
 
-// 👇 Đổi thành FutureProvider để đồng kiểu với myPostsProvider
 final filteredPostsProvider =
     FutureProvider<List<MatchPostViewModel>>((ref) async {
   final posts = await ref.watch(communityPostsProvider.future);
   final skillFilter = ref.watch(skillFilterProvider);
 
-  if (skillFilter == 'Tất cả') return posts;
-  return posts.where((p) => p.skillLevel == skillFilter).toList();
+  // Lọc status 'full' ra khỏi "Tất cả trận"
+  var filtered = posts.where((p) => p.status != 'full').toList();
+
+  if (skillFilter == 'Tất cả') return filtered;
+  return filtered.where((p) => p.skillLevel == skillFilter).toList();
 });

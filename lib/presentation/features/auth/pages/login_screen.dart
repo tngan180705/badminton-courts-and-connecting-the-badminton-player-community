@@ -26,7 +26,10 @@ class LoginScreen extends ConsumerWidget {
         data: (user) {
           if (previous is AsyncLoading && user != null) {
             Navigator.pop(context); // Đóng Loading Dialog
-            // Chuyển sang Home và xóa lịch sử navigation
+
+            // THÊM DÒNG NÀY ĐỂ XÓA CACHE DỮ LIỆU CŨ CỦA USER TRƯỚC ĐÓ
+            ref.invalidate(userDataProvider);
+
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const HomeScreen()),

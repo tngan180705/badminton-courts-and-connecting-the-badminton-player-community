@@ -42,8 +42,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   void _onRegister() {
+    print('📸 Image file: $_imageFile');
+
     if (_formKey.currentState!.validate()) {
-      // GỌI PROVIDER THAY VÌ REPOSITORY TRỰC TIẾP
       ref.read(registerActionProvider).register(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),

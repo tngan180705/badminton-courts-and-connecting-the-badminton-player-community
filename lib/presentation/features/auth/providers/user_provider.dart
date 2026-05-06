@@ -8,7 +8,11 @@ final userDataProvider = StreamProvider<Map<String, dynamic>?>((ref) {
 
   return FirebaseFirestore.instance
       .collection('users')
-      .doc(user.uid)
+      .where('firebase_uid', isEqualTo: user.uid)
+      .limit(1)
       .snapshots()
-      .map((snapshot) => snapshot.data());
+      .map((snapshot) {
+    if (snapshot.docs.isEmpty) return null;
+    return snapshot.docs.first.data();
+  });
 });
