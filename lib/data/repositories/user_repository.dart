@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 
+import '../models/user_model.dart'; // ✅ THÊM
+
 class UserRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -61,27 +63,19 @@ class UserRepository {
     try {
       print('🔄 Bắt đầu đăng ký...');
 
-      // 1. Tạo tài khoản Firebase
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
       final firebaseUid = userCredential.user!.uid;
-      print('✅ Firebase account created: $firebaseUid');
 
-      // 2. Generate ID
       final userId = await _generateUserId();
-      print('✅ Generated userId: $userId');
 
-      // 3. Upload avatar
       String? avatarUrl;
       if (imageFile != null) {
         avatarUrl = await _uploadAndSyncAvatar(userId, imageFile);
-        print('✅ Avatar uploaded: $avatarUrl');
       }
 
-      // 4. Lưu user
-      print('🔄 Saving user to Firestore...');
       await _firestore.collection('users').doc(userId).set({
         'firebase_uid': firebaseUid,
         'full_name': fullName,
@@ -94,7 +88,7 @@ class UserRepository {
         'wallet_balance': 0.0,
         'created_at': Timestamp.now(),
       });
-// 👇 Thêm reference ngược: Firebase UID → User ID
+
       await _firestore
           .collection('users_by_firebase_uid')
           .doc(firebaseUid)
@@ -102,11 +96,21 @@ class UserRepository {
         'user_id': userId,
         'created_at': Timestamp.now(),
       });
+
       print('✅ User saved: $userId');
     } catch (e, stack) {
       print('❌ Error: $e');
       print('Stack: $stack');
       rethrow;
     }
+  }
+
+  // ⭐ FIX THÊM (BẮT BUỘC)
+  Future<UserModel?> getUserById(String userId) async {
+    final doc = await _firestore.collection('users').doc(userId).get();
+
+    if (!doc.exists) return null;
+
+    return UserModel.fromFirestore(doc.data()!, doc.id);
   }
 }

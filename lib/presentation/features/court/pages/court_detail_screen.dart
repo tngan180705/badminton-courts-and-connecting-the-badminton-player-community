@@ -1,5 +1,8 @@
+import 'package:badminton_app/presentation/features/court/providers/review_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../../core/constants/app_colors.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../common_widgets/main_header.dart';
@@ -11,9 +14,12 @@ import '../../auth/providers/user_provider.dart';
 import '../../../../data/models/sub_court_model.dart';
 import '../../../../data/models/match_post_view_model.dart';
 
-class CourtDetailScreen extends ConsumerWidget {
-  final String courtName; // Tên sân lớn (ví dụ: Sân Cầu Lông NBC)
-  final SubCourtModel subCourt; // Object sân con
+// ✅ FIX: giữ import nhưng đảm bảo tồn tại file
+import '../providers/user_repository_provider.dart';
+
+class CourtDetailScreen extends ConsumerStatefulWidget {
+  final String courtName;
+  final SubCourtModel subCourt;
 
   const CourtDetailScreen({
     super.key,
@@ -22,9 +28,27 @@ class CourtDetailScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CourtDetailScreen> createState() => _CourtDetailScreenState();
+}
+
+class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
+  bool isFavorite = false;
+
+  @override
+  Widget build(BuildContext context) {
     final userAsync = ref.watch(userDataProvider);
     final postsAsync = ref.watch(communityPostsProvider);
+
+    // ✅ FIX: dùng đúng subCourtId động, không hardcode
+    final reviewsAsync =
+        ref.watch(userReviewsProvider(widget.subCourt.subCourtId));
+
+    final List<String> courtImages = [
+      'assets/images/chitiet.png',
+      'assets/images/chitiet1.png',
+      'assets/images/chitiet2.png',
+      'assets/images/san4.jpg',
+    ];
 
     final userName = userAsync.maybeWhen(
       data: (data) => data?['full_name'] ?? 'Người dùng',
@@ -32,18 +56,18 @@ class CourtDetailScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      backgroundColor:
-          const Color(0xFFE5E5CA), // Màu nền đồng bộ CommunityScreen
+      backgroundColor: const Color(0xFFE5E5CA),
       appBar: MainHeader(userName: userName),
+
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Tiêu đề trang
+
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Text(
-                'Chi tiết ${subCourt.subCourtName}',
+                'Chi tiết ${widget.subCourt.subCourtName}',
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
@@ -52,22 +76,19 @@ class CourtDetailScreen extends ConsumerWidget {
               ),
             ),
 
-            // 2. Hình ảnh chi tiết sân (3-4 ảnh)
             SizedBox(
               height: 220,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: 4,
+                itemCount: courtImages.length,
                 itemBuilder: (context, index) => Container(
                   width: 300,
                   margin: const EdgeInsets.only(right: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    image: const DecorationImage(
-                      image: NetworkImage(
-                          'https://VNASports.vn/uploads/tiny/tin-tuc/kich-thuoc-san-cau-long.jpg'),
+                    image: DecorationImage(
+                      image: AssetImage(courtImages[index]),
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -75,42 +96,96 @@ class CourtDetailScreen extends ConsumerWidget {
               ),
             ),
 
-            // 3. Tên sân & Thông tin giá tiền
+            const SizedBox(height: 16),
+
             Container(
-              width: double.infinity,
-              margin: const EdgeInsets.all(16),
+              margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+
                   Text(
-                    '$courtName - ${subCourt.subCourtName}',
+                    '${widget.courtName} - ${widget.subCourt.subCourtName}',
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 10),
-                  const Row(
+
+                  const SizedBox(height: 12),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        debugPrint("Đặt sân ${widget.subCourt.subCourtName}");
+                      },
+                      icon: const Icon(Icons.calendar_month),
+                      label: const Text("Đặt sân ngay"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF407F3E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(Icons.payments_outlined,
-                          color: Colors.orange, size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'Giá thuê: 150.000đ / giờ',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600),
+
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            isFavorite = !isFavorite;
+                          });
+                        },
+                        icon: Icon(
+                          isFavorite
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          color: Colors.red,
+                        ),
+                      ),
+
+                      const Row(
+                        children: [
+                          Icon(Icons.payments_outlined,
+                              color: Colors.orange, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            '150.000đ / giờ',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+
+                  const SizedBox(height: 10),
+
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Text(
                       '🔥 Giờ vàng (5h-7h & 20h-22h): Chỉ 40.000đ/giờ',
@@ -125,48 +200,129 @@ class CourtDetailScreen extends ConsumerWidget {
               ),
             ),
 
-            // 4. Mô tả cơ bản
+            const SizedBox(height: 16),
+
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Mô tả:',
+                'Khung giờ trống',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Text(
-                'Sân đạt tiêu chuẩn thi đấu, thảm chuyên dụng chống trơn trượt. Hệ thống đèn chiếu sáng hiện đại, không gây lóa mắt. Sân thường rất đông vào khung giờ tối từ 18h - 20h.',
-                style:
-                    TextStyle(fontSize: 14, color: Colors.black87, height: 1.5),
-              ),
-            ),
 
-            // 5. Đánh giá sân (Rating)
+            const SizedBox(height: 8),
+
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  const Text('Đánh giá: ',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  ...List.generate(
-                      4,
-                      (index) => const Icon(Icons.star,
-                          color: Colors.amber, size: 20)),
-                  const Icon(Icons.star_half, color: Colors.amber, size: 20),
-                  const SizedBox(width: 8),
-                  const Text('4.5 (120 lượt đánh giá)',
-                      style: TextStyle(fontSize: 13, color: Colors.grey)),
-                ],
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: List.generate(8, (index) {
+                  final hour = 8 + index;
+                  final isBooked = index == 2 || index == 5;
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isBooked
+                          ? Colors.grey.shade300
+                          : Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      "$hour:00",
+                      style: TextStyle(
+                        color: isBooked
+                            ? Colors.grey
+                            : Colors.green.shade800,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  );
+                }),
               ),
             ),
 
-            const SizedBox(height: 24),
-            const Divider(thickness: 1, height: 1),
+            const SizedBox(height: 16),
 
-            // 6. Các trận ghép (Lướt ngang - Đã sửa theo ảnh của bạn)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(
+                height: 200,
+                child: FlutterMap(
+  options: const MapOptions(
+    initialCenter: LatLng(10.73, 106.7),
+    initialZoom: 15.0,
+  ),
+  children: [
+   TileLayer(
+  urlTemplate: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+  subdomains: const ['a', 'b', 'c'],
+  userAgentPackageName: 'com.badminton.app',
+),
+    MarkerLayer(
+      markers: [
+        Marker(
+          point: LatLng(10.73, 106.7),
+          width: 40,
+          height: 40,
+          child: const Icon(
+            Icons.location_on,
+            color: Colors.red,
+            size: 40,
+          ),
+        ),
+      ],
+    ),
+  ],
+),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Đánh giá người dùng',
+                style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+
+            // ================= FIX REVIEW =================
+            reviewsAsync.when(
+              data: (reviews) {
+                if (reviews.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text("Chưa có đánh giá nào."),
+                  );
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: reviews.length,
+                  itemBuilder: (context, index) {
+                    final review = reviews[index];
+                    return _ReviewTile(review: review);
+                  },
+                );
+              },
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text("Lỗi tải đánh giá: $e"),
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'CÁC TRẬN GHÉP TẠI SÂN NÀY',
                 style: TextStyle(
@@ -180,13 +336,15 @@ class CourtDetailScreen extends ConsumerWidget {
             postsAsync.when(
               data: (allPosts) {
                 final filteredPosts = allPosts
-                    .where((p) => p.subCourtName == subCourt.subCourtName)
+                    .where((p) =>
+                        p.subCourtName ==
+                        widget.subCourt.subCourtName)
                     .take(4)
                     .toList();
 
                 if (filteredPosts.isEmpty) {
                   return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
+                    padding: EdgeInsets.all(20),
                     child: Center(child: Text('Chưa có trận ghép nào.')),
                   );
                 }
@@ -195,12 +353,14 @@ class CourtDetailScreen extends ConsumerWidget {
                   height: 280,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: filteredPosts.length,
                     itemBuilder: (context, index) {
                       final match = filteredPosts[index];
                       return Container(
-                        width: MediaQuery.of(context).size.width * 0.85,
+                        width:
+                            MediaQuery.of(context).size.width * 0.85,
                         margin: const EdgeInsets.only(right: 12),
                         child: MatchCard(
                           match: match,
@@ -211,36 +371,82 @@ class CourtDetailScreen extends ConsumerWidget {
                   ),
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text('Lỗi: $err')),
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
+              error: (err, _) =>
+                  Center(child: Text('Lỗi: $err')),
             ),
 
-            const SizedBox(height: 120), // Khoảng trống cho FAB
+            const SizedBox(height: 120),
           ],
         ),
       ),
+
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Tích hợp AI Chat ở đây
-          debugPrint("Mở AI Chat");
-        },
+        onPressed: () {},
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
+        child: const Icon(Icons.smart_toy_outlined),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+
+      floatingActionButtonLocation:
+          FloatingActionButtonLocation.centerDocked,
 
       bottomNavigationBar: MainFooter(
-        currentIndex: 0, // Đang ở chi tiết sân nên có thể coi là nhánh của Home
+        currentIndex: 0,
         onTap: (index) {
           if (index == 0) {
-            Navigator.pop(context); // Quay về trang chủ
+            Navigator.pop(context);
           } else if (index == 1) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const CommunityScreen()),
+              MaterialPageRoute(
+                builder: (context) =>
+                    const CommunityScreen(),
+              ),
             );
           }
         },
+      ),
+    );
+  }
+}
+
+// ================= FIX REVIEW TILE (KHÔNG LƯỢC CODE) =================
+class _ReviewTile extends StatelessWidget {
+  final dynamic review;
+
+  const _ReviewTile({required this.review});
+
+  @override
+  Widget build(BuildContext context) {
+    final int rating = (review.ratingScore ?? 0);
+
+    return ListTile(
+      leading: const CircleAvatar(
+        child: Icon(Icons.person),
+      ),
+
+      title: Text(review.fromUserId ?? "Người dùng"),
+
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: List.generate(5, (index) {
+              return Icon(
+                index < rating
+                    ? Icons.star
+                    : Icons.star_border,
+                color: Colors.amber,
+                size: 16,
+              );
+            }),
+          ),
+
+          const SizedBox(height: 4),
+
+          Text(review.comment ?? ""),
+        ],
       ),
     );
   }

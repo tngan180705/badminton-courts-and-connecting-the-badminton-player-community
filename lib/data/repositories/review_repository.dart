@@ -4,24 +4,21 @@ import '../models/review_model.dart';
 class ReviewRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Gửi đánh giá cho người chơi khác (sau trận đấu)
-  Future<void> addUserReview(UserReviewModel review) async {
-    await _firestore.collection('reviews').add(review.toFirestore());
+  final String _collection = 'court_reviews'; // ✅ CHỐT 1 COLLECTION
+
+  Future<void> addCourtReview(UserReviewModel review) async {
+    await _firestore.collection(_collection).add(review.toFirestore());
   }
 
-  // Gửi đánh giá cho sân con
-  Future<void> addCourtReview(Map<String, dynamic> courtReviewData) async {
-    await _firestore.collection('court_reviews').add(courtReviewData);
-  }
-
-  // Lấy danh sách đánh giá của một sân con cụ thể
-  Future<List<Map<String, dynamic>>> getReviewsBySubCourt(
-    String subCourtId,
-  ) async {
+  Future<List<UserReviewModel>> getReviewsBySubCourt(String subCourtId) async {
     final snapshot = await _firestore
-        .collection('court_reviews')
+        .collection(_collection)
         .where('sub_court_id', isEqualTo: subCourtId)
+        .orderBy('created_at', descending: true)
         .get();
-    return snapshot.docs.map((doc) => doc.data()).toList();
+
+    return snapshot.docs
+        .map((doc) => UserReviewModel.fromSnapshot(doc))
+        .toList();
   }
 }

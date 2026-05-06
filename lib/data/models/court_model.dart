@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class CourtModel {
-  final String courtId; // ID từ Document Firestore
+  final String courtId;
   final String ownerId;
   final String name;
   final String address;
@@ -9,7 +11,7 @@ class CourtModel {
   final String openTime;
   final String closeTime;
   final DateTime createdAt;
-  final String imageUrl;
+  final List<String> imageUrls;
 
   CourtModel({
     required this.courtId,
@@ -22,29 +24,42 @@ class CourtModel {
     required this.openTime,
     required this.closeTime,
     required this.createdAt,
-    required this.imageUrl,
+    required this.imageUrls,
   });
 
-  // Chuyển từ Firestore JSON sang Object Flutter
   factory CourtModel.fromFirestore(Map<String, dynamic> json, String id) {
     return CourtModel(
       courtId: id,
       ownerId: json['owner_id'] ?? '',
       name: json['name'] ?? '',
       address: json['address'] ?? '',
-      latitude: (json['latitude'] ?? 0.0).toDouble(),
-      longitude: (json['longitude'] ?? 0.0).toDouble(),
-      pricePerHour: (json['price_per_hour'] ?? 0).toDouble(),
+
+      latitude: (json['latitude'] is num)
+          ? (json['latitude'] as num).toDouble()
+          : double.tryParse(json['latitude']?.toString() ?? '') ?? 0.0,
+
+      longitude: (json['longitude'] is num)
+          ? (json['longitude'] as num).toDouble()
+          : double.tryParse(json['longitude']?.toString() ?? '') ?? 0.0,
+
+      pricePerHour: (json['price_per_hour'] is num)
+          ? (json['price_per_hour'] as num).toDouble()
+          : double.tryParse(json['price_per_hour']?.toString() ?? '') ?? 0.0,
+
       openTime: json['open_time'] ?? '',
       closeTime: json['close_time'] ?? '',
-      createdAt: (json['created_at'] != null)
-          ? json['created_at'].toDate()
+
+      createdAt: (json['created_at'] is Timestamp)
+          ? (json['created_at'] as Timestamp).toDate()
           : DateTime.now(),
-      imageUrl: json['image_url'] ?? '',
+
+      // ✅ FIX NULL SAFE 100%
+      imageUrls: (json['image_urls'] is List)
+          ? List<String>.from(json['image_urls'])
+          : [],
     );
   }
 
-  // --- HÀM NÀY GIÚP HẾT LỖI Ở REPOSITORY & PROVIDER ---
   Map<String, dynamic> toFirestore() {
     return {
       'owner_id': ownerId,
@@ -56,7 +71,7 @@ class CourtModel {
       'open_time': openTime,
       'close_time': closeTime,
       'created_at': createdAt,
-      'image_url': imageUrl,
+      'image_urls': imageUrls,
     };
   }
 }

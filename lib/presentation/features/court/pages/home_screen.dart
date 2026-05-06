@@ -28,12 +28,10 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(userDataProvider);
     final subCourtsAsync = ref.watch(homeSubCourtsProvider);
     final courtAsync = ref.watch(singleCourtProvider);
     final userAsync = ref.watch(userDataProvider);
 
-    // Lấy tên cửa hàng để truyền vào CourtCard
     final courtName = courtAsync.maybeWhen(
       data: (court) => court?.name ?? '',
       orElse: () => '',
@@ -45,117 +43,126 @@ class HomeScreen extends ConsumerWidget {
         child: subCourtsAsync.when(
           data: (subCourts) => CustomScrollView(
             slivers: [
-              // Header
+              /// HEADER
               SliverToBoxAdapter(
                 child: userAsync.when(
                   data: (data) =>
                       MainHeader(userName: data?['full_name'] ?? 'Người dùng'),
                   loading: () => const MainHeader(userName: '...'),
-                  error: (_, __) => const MainHeader(userName: 'Người dùng'),
+                  error: (_, __) =>
+                      const MainHeader(userName: 'Người dùng'),
                 ),
               ),
 
-              // Banner slider
+              /// BANNER
               SliverToBoxAdapter(child: _buildMainBannerSlider()),
 
-              // Banner gợi ý AI
+              /// PROMO
               SliverToBoxAdapter(child: _buildPromotionBanner()),
 
-              // Tiêu đề + tên cửa hàng
+              /// TITLE
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                      vertical: AppSizes.spaceMedium,
-                      horizontal: AppSizes.screenPadding),
+                    vertical: AppSizes.spaceMedium,
+                    horizontal: AppSizes.screenPadding,
+                  ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Center(
-                        child: Text(
-                          'DANH SÁCH SÂN',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                      const Text(
+                        'DANH SÁCH SÂN',
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      if (courtName.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Center(
-                          child: Text(
-                            courtName,
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 13,
-                            ),
+                      if (courtName.isNotEmpty)
+                        Text(
+                          courtName,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
                           ),
                         ),
-                      ],
                     ],
                   ),
                 ),
               ),
 
-              // Grid sub_courts
+              /// GRID
               SliverPadding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: AppSizes.screenPadding),
+                  horizontal: AppSizes.screenPadding,
+                ),
                 sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     mainAxisSpacing: AppSizes.spaceMedium,
                     crossAxisSpacing: AppSizes.spaceMedium,
                     childAspectRatio: 0.8,
                   ),
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) => CourtCard(
-                      subCourt: subCourts[index],
-                      courtName: courtName,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CourtDetailScreen(
-                              subCourt: subCourts[index],
-                              courtName: courtName,
+                    (context, index) {
+                      return CourtCard(
+                        subCourt: subCourts[index],
+                        courtName: courtName,
+                        onTap: () {
+                          final court = courtAsync.value;
+
+                          if (court == null) return;
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CourtDetailScreen(
+                                courtName: court.name, // ✅ FIXED
+                                subCourt: subCourts[index],
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                          );
+                        },
+                      );
+                    },
                     childCount: subCourts.length,
                   ),
                 ),
               ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 100),
+              ),
             ],
           ),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(child: Text('Lỗi: $err')),
+          loading: () =>
+              const Center(child: CircularProgressIndicator()),
+          error: (err, _) => Center(child: Text('Lỗi: $err')),
         ),
       ),
+
       bottomNavigationBar: MainFooter(
         currentIndex: 0,
         onTap: (index) {
           if (index == 1) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const CommunityScreen()),
+              MaterialPageRoute(
+                builder: (_) => const CommunityScreen(),
+              ),
             );
           }
         },
       ),
-      // 👇 BẮT BUỘC PHẢI CÓ
+
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: AI sau
-        },
+        onPressed: () {},
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
       ),
 
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation:
+          FloatingActionButtonLocation.centerDocked,
     );
   }
 
+  /// ================= BANNER =================
   Widget _buildMainBannerSlider() {
     final List<String> imgList = [
       'assets/images/banner1.jpg',
@@ -166,72 +173,38 @@ class HomeScreen extends ConsumerWidget {
 
     return CarouselSlider(
       options: CarouselOptions(
-        height: 240.0,
+        height: 240,
         autoPlay: true,
-        autoPlayInterval: const Duration(seconds: 4),
         viewportFraction: 0.9,
         enlargeCenterPage: true,
       ),
       items: imgList.map((imgPath) {
-        return Builder(
-          builder: (BuildContext context) {
-            return Container(
-              width: double.infinity,
-              decoration:
-                  BoxDecoration(borderRadius: BorderRadius.circular(20)),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Image.asset(
-                  imgPath,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: 220.0,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[300],
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.broken_image,
-                          color: Colors.grey, size: 50),
-                    );
-                  },
-                ),
-              ),
-            );
-          },
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Image.asset(
+            imgPath,
+            fit: BoxFit.cover,
+            width: double.infinity,
+          ),
         );
       }).toList(),
     );
   }
 
+  /// ================= PROMO =================
   Widget _buildPromotionBanner() {
     return Container(
       margin: const EdgeInsets.all(AppSizes.screenPadding),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.accent.withOpacity(0.8),
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white, width: 1),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          const Icon(Icons.smart_toy_outlined, color: Colors.black54),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'Thứ 3 rồi, đặt sân số 2 lúc 18h nhé?',
-              style: TextStyle(fontStyle: FontStyle.italic, fontSize: 13),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20)),
-            ),
-            child: const Text('Đặt ngay',
-                style: TextStyle(color: Colors.white, fontSize: 12)),
-          ),
+          Icon(Icons.smart_toy_outlined),
+          SizedBox(width: 10),
+          Expanded(child: Text('Thứ 3 rồi, đặt sân số 2 lúc 18h nhé?')),
         ],
       ),
     );
