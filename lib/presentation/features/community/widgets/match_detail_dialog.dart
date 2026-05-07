@@ -10,6 +10,41 @@ class MatchDetailDialog extends StatelessWidget {
   final MatchPostViewModel match;
 
   const MatchDetailDialog({super.key, required this.match});
+  String _calculateFormattedPrice() {
+    try {
+      final startParts = match.startTime.split(':');
+      final endParts = match.endTime.split(':');
+      
+      final startHour = int.parse(startParts[0]);
+      final startMin = int.parse(startParts[1]);
+      final endHour = int.parse(endParts[0]);
+      final endMin = int.parse(endParts[1]);
+
+      double totalPrice = 0;
+
+      DateTime startDT = DateTime(2026, 1, 1, startHour, startMin);
+      DateTime endDT = DateTime(2026, 1, 1, endHour, endMin);
+      
+      DateTime temp = startDT;
+      const stepMinutes = 15;
+      
+      while (temp.isBefore(endDT)) {
+        final hour = temp.hour;
+        final isGolden = (hour >= 5 && hour < 7) || (hour >= 20 && hour < 22);
+        final pricePerMinute = (isGolden ? 40000 : 150000) / 60;
+        
+        int remainingMinutes = endDT.difference(temp).inMinutes;
+        int currentStep = remainingMinutes < stepMinutes ? remainingMinutes : stepMinutes;
+        
+        totalPrice += currentStep * pricePerMinute;
+        temp = temp.add(Duration(minutes: currentStep));
+      }
+
+      return totalPrice.toInt().toString();
+    } catch (e) {
+      return '150000';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +118,7 @@ class MatchDetailDialog extends StatelessWidget {
               _buildDetailRow(
                 icon: Icons.attach_money_outlined,
                 label: 'Giá:',
-                value: '${_calculatePrice(match.startTime, match.endTime)}đ',
+                value: '${_calculateFormattedPrice()}đ',
               ),
               const SizedBox(height: 20),
 
@@ -156,17 +191,6 @@ class MatchDetailDialog extends StatelessWidget {
     );
   }
 
-  String _calculatePrice(String startTime, String endTime) {
-    try {
-      final start = int.parse(startTime.split(':')[0]);
-      final end = int.parse(endTime.split(':')[0]);
-
-      final hours = (end - start).abs().toDouble();
-      return (hours * 150000).toInt().toString();
-    } catch (e) {
-      return '150000';
-    }
-  }
 }
 
 class _MembersList extends StatelessWidget {
