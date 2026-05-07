@@ -12,27 +12,29 @@ class BookingPriceSummary extends StatelessWidget {
   });
 
   double _calculatePrice() {
-    final start = startTime.hour;
-    final end = endTime.hour;
+    final startHour = startTime.hour;
+    final startMin = startTime.minute;
+    final endHour = endTime.hour;
     final endMin = endTime.minute;
 
     double totalPrice = 0;
 
-    for (int h = start; h < end; h++) {
-      if ((h >= 5 && h < 7) || (h >= 20 && h < 22)) {
-        totalPrice += 40000;
-      } else {
-        totalPrice += 150000;
-      }
-    }
-
-    if (endMin > 0) {
-      final lastHour = end;
-      final pricePerHour =
-          (lastHour >= 5 && lastHour < 7) || (lastHour >= 20 && lastHour < 22)
-              ? 40000
-              : 150000;
-      totalPrice += (endMin / 60) * pricePerHour;
+    DateTime startDT = DateTime(2026, 1, 1, startHour, startMin);
+    DateTime endDT = DateTime(2026, 1, 1, endHour, endMin);
+    
+    DateTime temp = startDT;
+    const stepMinutes = 15;
+    
+    while (temp.isBefore(endDT)) {
+      final hour = temp.hour;
+      final isGolden = (hour >= 5 && hour < 7) || (hour >= 20 && hour < 22);
+      final pricePerMinute = (isGolden ? 40000 : 150000) / 60;
+      
+      int remainingMinutes = endDT.difference(temp).inMinutes;
+      int currentStep = remainingMinutes < stepMinutes ? remainingMinutes : stepMinutes;
+      
+      totalPrice += currentStep * pricePerMinute;
+      temp = temp.add(Duration(minutes: currentStep));
     }
 
     return totalPrice;

@@ -12,7 +12,6 @@ final skillFilterProvider = StateProvider<String>((ref) => 'Tất cả');
 final communityTabProvider = StateProvider<int>((ref) => 0);
 
 /// =========================
-/// CORE JOIN FUNCTION
 /// =========================
 Future<List<MatchPostViewModel>> _fetchAndJoinPosts(
   FirebaseFirestore db,
@@ -20,108 +19,116 @@ Future<List<MatchPostViewModel>> _fetchAndJoinPosts(
   DateTime now,
   DateTime sevenDaysLater,
 ) async {
-  final List<MatchPostViewModel> results = [];
   final nowDateOnly = DateTime(now.year, now.month, now.day);
+  
+  // Local caches to avoid redundant fetches in the same batch
+  final subCourtCache = <String, DocumentSnapshot>{};
+  final courtCache = <String, DocumentSnapshot>{};
+  final userCache = <String, QuerySnapshot>{};
+  final bookingCache = <String, DocumentSnapshot>{};
 
-  for (final postDoc in docs) {
+  final futures = docs.map((postDoc) async {
     try {
-      final post =
-          MatchPostModel.fromFirestore(postDoc.data(), postDoc.id);
+      final post = MatchPostModel.fromFirestore(postDoc.data(), postDoc.id);
+      if (post.bookingId.isEmpty) return null;
 
-      if (post.bookingId.isEmpty) continue;
-
-      final bookingSnap =
-          await db.collection('bookings').doc(post.bookingId).get();
-
-      if (!bookingSnap.exists || bookingSnap.data() == null) continue;
+      // 1. Fetch Booking (cached)
+      if (!bookingCache.containsKey(post.bookingId)) {
+        bookingCache[post.bookingId] = await db.collection('bookings').doc(post.bookingId).get();
+      }
+      final bookingSnap = bookingCache[post.bookingId]!;
+      if (!bookingSnap.exists || bookingSnap.data() == null) return null;
 
       final booking = bookingSnap.data() as Map<String, dynamic>;
-
       final rawDate = booking['booking_date'];
-
       DateTime bookingDate;
-
       if (rawDate is Timestamp) {
         bookingDate = rawDate.toDate();
       } else if (rawDate is String) {
         bookingDate = DateTime.tryParse(rawDate) ?? DateTime.now();
       } else {
-        continue;
+        return null;
       }
 
-      final bookingDateOnly =
-          DateTime(bookingDate.year, bookingDate.month, bookingDate.day);
-
-      if (bookingDateOnly.isBefore(nowDateOnly) ||
-          bookingDateOnly.isAfter(sevenDaysLater)) {
-        continue;
+      final bookingDateOnly = DateTime(bookingDate.year, bookingDate.month, bookingDate.day);
+      if (bookingDateOnly.isBefore(nowDateOnly) || bookingDateOnly.isAfter(sevenDaysLater)) {
+        return null;
       }
 
-      /// =========================
-      /// SUB COURT
-      /// =========================
+      // Check if match has ended (if today)
+      if (bookingDateOnly.isAtSameMomentAs(nowDateOnly)) {
+        final endTimeStr = booking['end_time']?.toString() ?? '00:00';
+        final endParts = endTimeStr.split(':');
+        if (endParts.length == 2) {
+          final endHour = int.tryParse(endParts[0]) ?? 0;
+          final endMin = int.tryParse(endParts[1]) ?? 0;
+          final endDateTime = DateTime(now.year, now.month, now.day, endHour, endMin);
+          if (now.isAfter(endDateTime)) {
+            return null; // Match has ended
+          }
+        }
+      }
+
       final subCourtId = booking['sub_court_id']?.toString() ?? '';
-      if (subCourtId.isEmpty) continue;
+      if (subCourtId.isEmpty) return null;
 
-      final subCourtSnap =
-          await db.collection('sub_courts').doc(subCourtId).get();
+      // 2. Fetch SubCourt & User & Members in parallel (with caching for SubCourt & User)
+      final subCourtFuture = subCourtCache.containsKey(subCourtId) 
+          ? Future.value(subCourtCache[subCourtId]) 
+          : db.collection('sub_courts').doc(subCourtId).get();
+          
+      final userFuture = userCache.containsKey(post.hostId)
+          ? Future.value(userCache[post.hostId])
+          : db.collection('users').where('firebase_uid', isEqualTo: post.hostId).limit(1).get();
+          
+      final membersFuture = db.collection('match_members').where('match_post_id', isEqualTo: post.matchPostId).get();
 
-      if (!subCourtSnap.exists || subCourtSnap.data() == null) continue;
+      final results = await Future.wait([subCourtFuture, userFuture, membersFuture]);
 
+      final subCourtSnap = results[0] as DocumentSnapshot;
+      final userSnap = results[1] as QuerySnapshot;
+      final membersSnap = results[2] as QuerySnapshot;
+
+      // Update caches
+      subCourtCache[subCourtId] = subCourtSnap;
+      userCache[post.hostId] = userSnap;
+
+      if (!subCourtSnap.exists || subCourtSnap.data() == null) return null;
       final subCourt = subCourtSnap.data() as Map<String, dynamic>;
 
-      /// =========================
-      /// COURT
-      /// =========================
       final courtId = subCourt['court_id']?.toString() ?? '';
-      if (courtId.isEmpty) continue;
+      if (courtId.isEmpty) return null;
 
-      final courtSnap =
-          await db.collection('courts').doc(courtId).get();
-
-      if (!courtSnap.exists || courtSnap.data() == null) continue;
-
+      // 3. Fetch Court (cached)
+      if (!courtCache.containsKey(courtId)) {
+        courtCache[courtId] = await db.collection('courts').doc(courtId).get();
+      }
+      final courtSnap = courtCache[courtId]!;
+      if (!courtSnap.exists || courtSnap.data() == null) return null;
       final court = courtSnap.data() as Map<String, dynamic>;
 
-      /// =========================
-      /// HOST
-      /// =========================
-      final userSnap = await db
-          .collection('users')
-          .where('firebase_uid', isEqualTo: post.hostId)
-          .limit(1)
-          .get();
-
       String hostName = 'Người dùng';
+      String hostAvatar = '';
+      double hostScore = 100.0;
 
       if (userSnap.docs.isNotEmpty) {
-        hostName =
-            userSnap.docs.first.data()['full_name'] ?? 'Người dùng';
+        final userData = userSnap.docs.first.data() as Map<String, dynamic>;
+        hostName = userData['full_name'] ?? 'Người dùng';
+        hostAvatar = userData['avatar_base64'] ?? '';
+        hostScore = (userData['reliability_score'] ?? 100.0).toDouble();
       }
 
-      /// =========================
-      /// MEMBERS
-      /// =========================
-      final membersSnap = await db
-          .collection('match_members')
-          .where('match_post_id', isEqualTo: post.matchPostId)
-          .get();
-
       final memberIds = membersSnap.docs
-          .map((e) => (e.data()['user_id'] ?? '').toString())
+          .map((e) => (e.data() as Map<String, dynamic>)['user_id']?.toString() ?? '')
           .where((e) => e.isNotEmpty)
           .toList();
 
-      /// =========================
-      /// ADD VIEW MODEL
-      /// =========================
-      results.add(MatchPostViewModel(
+      return MatchPostViewModel(
         matchPostId: post.matchPostId,
         hostId: post.hostId,
         hostName: hostName,
-        hostAvatarBase64:
-    userSnap.docs.first.data()['avatar_base64'] ?? '',
-        hostReliabilityScore: 100,
+        hostAvatarBase64: hostAvatar,
+        hostReliabilityScore: hostScore,
         title: post.title,
         courtName: court['name']?.toString() ?? '',
         subCourtName: subCourt['sub_court_name']?.toString() ?? '',
@@ -133,102 +140,112 @@ Future<List<MatchPostViewModel>> _fetchAndJoinPosts(
         skillLevel: post.skillLevel,
         subCourtId: subCourtId,
         memberIds: memberIds,
-      ));
+      );
     } catch (e) {
-      continue;
+      print('❌ Error joining post data: $e');
+      return null;
     }
-  }
+  });
+
+  final allResults = await Future.wait(futures);
+  final results = allResults.whereType<MatchPostViewModel>().toList();
 
   results.sort((a, b) => a.bookingDate.compareTo(b.bookingDate));
   return results;
 }
-/// =========================
-/// ALL POSTS
-/// =========================
-final communityPostsProvider =
-    FutureProvider<List<MatchPostViewModel>>((ref) async {
-  final db = FirebaseFirestore.instance;
 
+/// =========================
+/// ALL POSTS (Real-time)
+/// =========================
+final communityPostsProvider = StreamProvider<List<MatchPostViewModel>>((ref) {
+  final db = FirebaseFirestore.instance;
   final now = DateTime.now();
   final sevenDaysLater = now.add(const Duration(days: 7));
 
-  final snapshot = await db
+  return db
       .collection('match_posts')
       .where('status', whereIn: ['open', 'full'])
-      .get();
-
-  return _fetchAndJoinPosts(
-    db,
-    snapshot.docs,
-    now,
-    sevenDaysLater,
-  );
+      .snapshots()
+      .asyncMap((snapshot) => _fetchAndJoinPosts(
+            db,
+            snapshot.docs,
+            now,
+            sevenDaysLater,
+          ));
 });
 
 /// =========================
-/// MY POSTS
+/// MY POSTS (Real-time)
 /// =========================
-final myPostsProvider =
-    FutureProvider<List<MatchPostViewModel>>((ref) async {
+final myPostsProvider = StreamProvider<List<MatchPostViewModel>>((ref) {
   final db = FirebaseFirestore.instance;
   final user = FirebaseAuth.instance.currentUser;
 
-  if (user == null) return [];
+  if (user == null) return Stream.value([]);
 
   final now = DateTime.now();
   final sevenDaysLater = now.add(const Duration(days: 7));
 
-  /// hosted
-  final hostedSnap = await db
+  // Combine hosted and joined posts streams
+  final hostedStream = db
       .collection('match_posts')
       .where('host_id', isEqualTo: user.uid)
-      .get();
-
-  /// joined
-  final memberSnap = await db
+      .snapshots();
+      
+  final joinedStream = db
       .collection('match_members')
       .where('user_id', isEqualTo: user.uid)
-      .get();
+      .snapshots();
 
-  final joinedIds =
-      memberSnap.docs.map((e) => e['match_post_id'].toString()).toList();
+  return Stream.fromFuture(Future.value(null)).asyncExpand((_) async* {
+    await for (final hostedSnap in hostedStream) {
+      // For each hosted update, also get joined docs
+      final memberSnap = await db
+          .collection('match_members')
+          .where('user_id', isEqualTo: user.uid)
+          .get();
+          
+      final joinedIds = memberSnap.docs.map((e) => e['match_post_id'].toString()).toList();
+      
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> allDocs = [...hostedSnap.docs];
+      final uniqueIds = hostedSnap.docs.map((d) => d.id).toSet();
 
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> joinedDocs = [];
-
-  if (joinedIds.isNotEmpty) {
-    final snap = await db
-        .collection('match_posts')
-        .where(FieldPath.documentId, whereIn: joinedIds)
-        .get();
-
-    joinedDocs = snap.docs;
-  }
-
-  final allDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-  final unique = <String>{};
-
-  for (final d in hostedSnap.docs) {
-    if (unique.add(d.id)) allDocs.add(d);
-  }
-
-  for (final d in joinedDocs) {
-    if (unique.add(d.id)) allDocs.add(d);
-  }
-
-  return _fetchAndJoinPosts(db, allDocs, now, sevenDaysLater);
+      if (joinedIds.isNotEmpty) {
+        final joinedSnap = await db
+            .collection('match_posts')
+            .where(FieldPath.documentId, whereIn: joinedIds)
+            .get();
+            
+        for (final d in joinedSnap.docs) {
+          if (uniqueIds.add(d.id)) {
+            allDocs.add(d);
+          }
+        }
+      }
+      
+      yield await _fetchAndJoinPosts(db, allDocs, now, sevenDaysLater);
+    }
+  });
 });
 
 /// =========================
-/// FILTERED POSTS
+/// FILTERED POSTS (Reactive)
 /// =========================
-final filteredPostsProvider =
-    FutureProvider<List<MatchPostViewModel>>((ref) async {
-  final posts = await ref.watch(communityPostsProvider.future);
+final filteredPostsProvider = StreamProvider<List<MatchPostViewModel>>((ref) {
+  final postsAsync = ref.watch(communityPostsProvider);
   final filter = ref.watch(skillFilterProvider);
 
-  final base = posts.where((p) => p.status != 'full').toList();
-
-  if (filter == 'Tất cả') return base;
-
-  return base.where((p) => p.skillLevel == filter).toList();
+  return postsAsync.when(
+    data: (posts) {
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+      // ✅ Lọc: Chỉ ẩn những trận đã đầy (status == 'full')
+      // Cho phép hiện trận của mình tạo để đồng bộ dữ liệu
+      final base = posts.where((p) => p.status != 'full').toList();
+      
+      if (filter == 'Tất cả') return Stream.value(base);
+      return Stream.value(base.where((p) => p.skillLevel == filter).toList());
+    },
+    loading: () => const Stream.empty(),
+    error: (e, st) => Stream.error(e, st),
+  );
 });

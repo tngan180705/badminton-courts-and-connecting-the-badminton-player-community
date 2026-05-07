@@ -10,31 +10,40 @@ class MatchDetailDialog extends StatelessWidget {
   final MatchPostViewModel match;
 
   const MatchDetailDialog({super.key, required this.match});
-  double _calculateActualPrice() {
-    final start = int.parse(match.startTime.split(':')[0]);
-    final end = int.parse(match.endTime.split(':')[0]);
-    final endMin = int.parse(match.endTime.split(':')[1]);
+  String _calculateFormattedPrice() {
+    try {
+      final startParts = match.startTime.split(':');
+      final endParts = match.endTime.split(':');
+      
+      final startHour = int.parse(startParts[0]);
+      final startMin = int.parse(startParts[1]);
+      final endHour = int.parse(endParts[0]);
+      final endMin = int.parse(endParts[1]);
 
-    double totalPrice = 0;
+      double totalPrice = 0;
 
-    for (int h = start; h < end; h++) {
-      if ((h >= 5 && h < 7) || (h >= 20 && h < 22)) {
-        totalPrice += 40000;
-      } else {
-        totalPrice += 150000;
+      DateTime startDT = DateTime(2026, 1, 1, startHour, startMin);
+      DateTime endDT = DateTime(2026, 1, 1, endHour, endMin);
+      
+      DateTime temp = startDT;
+      const stepMinutes = 15;
+      
+      while (temp.isBefore(endDT)) {
+        final hour = temp.hour;
+        final isGolden = (hour >= 5 && hour < 7) || (hour >= 20 && hour < 22);
+        final pricePerMinute = (isGolden ? 40000 : 150000) / 60;
+        
+        int remainingMinutes = endDT.difference(temp).inMinutes;
+        int currentStep = remainingMinutes < stepMinutes ? remainingMinutes : stepMinutes;
+        
+        totalPrice += currentStep * pricePerMinute;
+        temp = temp.add(Duration(minutes: currentStep));
       }
-    }
 
-    if (endMin > 0) {
-      final lastHour = end;
-      final pricePerHour =
-          (lastHour >= 5 && lastHour < 7) || (lastHour >= 20 && lastHour < 22)
-              ? 40000
-              : 150000;
-      totalPrice += (endMin / 60) * pricePerHour;
+      return totalPrice.toInt().toString();
+    } catch (e) {
+      return '150000';
     }
-
-    return totalPrice;
   }
 
   @override
@@ -109,7 +118,7 @@ class MatchDetailDialog extends StatelessWidget {
               _buildDetailRow(
                 icon: Icons.attach_money_outlined,
                 label: 'Giá:',
-                value: '${_calculatePrice(match.startTime, match.endTime)}đ',
+                value: '${_calculateFormattedPrice()}đ',
               ),
               const SizedBox(height: 20),
 
@@ -182,17 +191,6 @@ class MatchDetailDialog extends StatelessWidget {
     );
   }
 
-  String _calculatePrice(String startTime, String endTime) {
-    try {
-      final start = int.parse(startTime.split(':')[0]);
-      final end = int.parse(endTime.split(':')[0]);
-
-      final hours = (end - start).abs().toDouble();
-      return (hours * 150000).toInt().toString();
-    } catch (e) {
-      return '150000';
-    }
-  }
 }
 
 class _MembersList extends StatelessWidget {

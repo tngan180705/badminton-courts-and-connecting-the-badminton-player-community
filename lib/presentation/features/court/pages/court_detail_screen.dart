@@ -8,8 +8,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../common_widgets/main_header.dart';
 import '../../../common_widgets/main_footer.dart';
 import '../../community/widgets/match_card.dart';
+import '../../community/widgets/match_detail_dialog.dart';
 import '../../community/providers/community_provider.dart';
 import '../../community/pages/community_screen.dart';
+import '../../community/pages/match_join_handler.dart';
 import '../../auth/providers/user_provider.dart';
 import '../../../../data/models/sub_court_model.dart';
 import '../../../../data/models/match_post_view_model.dart';
@@ -32,6 +34,13 @@ class CourtDetailScreen extends ConsumerStatefulWidget {
 
 class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
   bool isFavorite = false;
+
+  void _showMatchDetail(BuildContext context, MatchPostViewModel match) {
+    showDialog(
+      context: context,
+      builder: (context) => MatchDetailDialog(match: match),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -185,9 +194,12 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
 
             postsAsync.when(
               data: (allPosts) {
+                final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                // ✅ Lọc: Cùng sân + Còn chỗ + Chưa kết thúc (provider đã lọc thời gian)
                 final filteredPosts = allPosts
-                    .where(
-                        (p) => p.subCourtName == widget.subCourt.subCourtName)
+                    .where((p) => 
+                        p.subCourtId == widget.subCourt.subCourtId && 
+                        p.status != 'full')
                     .take(4)
                     .toList();
 
@@ -206,12 +218,20 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
                     itemCount: filteredPosts.length,
                     itemBuilder: (context, index) {
                       final match = filteredPosts[index];
+                      final isMyPost = match.hostId == currentUserId || match.memberIds.contains(currentUserId);
+                      
                       return Container(
                         width: MediaQuery.of(context).size.width * 0.85,
                         margin: const EdgeInsets.only(right: 12),
                         child: MatchCard(
                           match: match,
-                          onJoinPressed: () {},
+                          isMyPost: isMyPost,
+                          onJoinPressed: !isMyPost 
+                              ? () => MatchJoinHandler.handleJoinMatch(context, ref, match)
+                              : null,
+                          onDetailPressed: isMyPost 
+                              ? () => _showMatchDetail(context, match)
+                              : null,
                         ),
                       );
                     },

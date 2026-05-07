@@ -6,6 +6,7 @@ import '../widgets/booking_header.dart';
 import '../widgets/booking_date_picker.dart';
 import '../widgets/booking_time_picker.dart';
 import '../widgets/booking_price_summary.dart';
+import '../widgets/booked_hours_summary.dart';
 import '../pages/booking_detail_screen.dart';
 
 class BookingScreen extends ConsumerStatefulWidget {
@@ -81,6 +82,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                   });
                 },
               ),
+              const SizedBox(height: 20),
+
+              // Booked hours summary (7 days)
+              BookedHoursSummary(subCourtId: widget.subCourt.subCourtId),
               const SizedBox(height: 20),
 
               // Time picker

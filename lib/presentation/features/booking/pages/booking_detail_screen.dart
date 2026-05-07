@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../data/models/sub_court_model.dart';
+import '../../community/providers/community_provider.dart';
 import '../widgets/booking_info_box.dart';
 import '../widgets/booking_user_info_box.dart';
 import '../widgets/find_teammates_dialog.dart';
 import '../widgets/payment_dialog.dart';
 
-class BookingDetailScreen extends StatefulWidget {
+class BookingDetailScreen extends ConsumerStatefulWidget {
   final String courtName;
   final SubCourtModel subCourt;
   final DateTime bookingDate;
@@ -26,37 +28,41 @@ class BookingDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<BookingDetailScreen> createState() => _BookingDetailScreenState();
+  ConsumerState<BookingDetailScreen> createState() => _BookingDetailScreenState();
 }
 
-class _BookingDetailScreenState extends State<BookingDetailScreen> {
+class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
   bool _isLoading = false;
 
   String _formatTime(TimeOfDay time) =>
       '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 
   double _calculatePrice() {
-    final start = widget.startTime.hour;
-    final end = widget.endTime.hour;
+    final startHour = widget.startTime.hour;
+    final startMin = widget.startTime.minute;
+    final endHour = widget.endTime.hour;
     final endMin = widget.endTime.minute;
 
     double totalPrice = 0;
 
-    for (int h = start; h < end; h++) {
-      if ((h >= 5 && h < 7) || (h >= 20 && h < 22)) {
-        totalPrice += 40000;
-      } else {
-        totalPrice += 150000;
-      }
-    }
-
-    if (endMin > 0) {
-      final lastHour = end;
-      final pricePerHour =
-          (lastHour >= 5 && lastHour < 7) || (lastHour >= 20 && lastHour < 22)
-              ? 40000
-              : 150000;
-      totalPrice += (endMin / 60) * pricePerHour;
+    // Tính tiền theo từng block 30 phút hoặc 1 tiếng bằng cách quét qua từng phút (hoặc đơn giản hơn là từng block)
+    // Để chính xác nhất, ta tính tổng số phút và kiểm tra giá tại từng thời điểm
+    DateTime startDT = DateTime(2026, 1, 1, startHour, startMin);
+    DateTime endDT = DateTime(2026, 1, 1, endHour, endMin);
+    
+    DateTime temp = startDT;
+    const stepMinutes = 15; // Tính theo bước 15 phút để đảm bảo độ chính xác
+    
+    while (temp.isBefore(endDT)) {
+      final hour = temp.hour;
+      final isGolden = (hour >= 5 && hour < 7) || (hour >= 20 && hour < 22);
+      final pricePerMinute = (isGolden ? 40000 : 150000) / 60;
+      
+      int remainingMinutes = endDT.difference(temp).inMinutes;
+      int currentStep = remainingMinutes < stepMinutes ? remainingMinutes : stepMinutes;
+      
+      totalPrice += currentStep * pricePerMinute;
+      temp = temp.add(Duration(minutes: currentStep));
     }
 
     return totalPrice;
@@ -135,9 +141,25 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         'created_at': Timestamp.now(),
       });
 
-      print('✅ Booking created: $bookingId');
+      // ✅ 2. Tạo match_post ảo (slots=0) để hiện trong "Trận của tôi"
+      final matchPostId = await _generateMatchPostId();
+      await db.collection('match_posts').doc(matchPostId).set({
+        'host_id': currentUser.uid,
+        'booking_id': bookingId,
+        'title': 'Đánh riêng',
+        'description': 'Lịch đặt sân riêng',
+        'slots_needed': 0,
+        'status': 'full',
+        'skill_level': 'Tất cả',
+        'created_at': Timestamp.now(),
+      });
+
+      print('✅ Booking and Match Post created: $bookingId, $matchPostId');
 
       if (mounted) {
+        // ✅ 3. Invalidate providers
+        ref.invalidate(communityPostsProvider);
+        ref.invalidate(myPostsProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Đặt sân thành công!'),
@@ -227,14 +249,21 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       print('✅ Match post created: $matchPostId');
 
       if (mounted) {
+        // ✅ 4. Invalidate providers to refresh UI immediately
+        ref.invalidate(communityPostsProvider);
+        ref.invalidate(myPostsProvider);
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Đăng bài ghép nhóm thành công!'),
             backgroundColor: AppColors.primary,
           ),
         );
-        Navigator.pop(context); // Quay lại court detail
-        Navigator.pop(context); // Quay lại home
+
+        // Capture navigator before popping to avoid unmounted context issues
+        final navigator = Navigator.of(context);
+        navigator.pop(); // Quay lại BookingScreen
+        navigator.pop(); // Quay lại CourtDetailScreen
       }
     } catch (e) {
       print('❌ Error: $e');
@@ -251,98 +280,251 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final totalPrice = _calculatePrice();
+    final formatter = NumberFormat('#,###', 'vi_VN');
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Chi tiết đặt sân'),
+        title: const Text('Xác nhận đặt sân'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Sân
-              BookingInfoBox(
-                label: 'Sân',
-                value: '${widget.courtName} - ${widget.subCourt.subCourtName}',
-              ),
-              const SizedBox(height: 12),
-
-              // Ngày
-              BookingInfoBox(
-                label: 'Ngày',
-                value: DateFormat('dd/MM/yyyy').format(widget.bookingDate),
-              ),
-              const SizedBox(height: 12),
-
-              // Giờ
-              BookingInfoBox(
-                label: 'Thời gian',
-                value:
-                    '${_formatTime(widget.startTime)} - ${_formatTime(widget.endTime)}',
-              ),
-              const SizedBox(height: 12),
-
-              // Giá
-              BookingInfoBox(
-                label: 'Tổng tiền',
-                value: '${totalPrice.toInt()} đ',
-                backgroundColor: Colors.orange.shade50,
-              ),
-              const SizedBox(height: 12),
-
-              // User info
-              const BookingUserInfoBox(),
-              const SizedBox(height: 32),
-
-              // Buttons
-              const Text(
-                'Bạn muốn:',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+        child: Column(
+          children: [
+            // Header Decoration
+            Container(
+              width: double.infinity,
+              height: 60,
+              decoration: const BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
                 ),
               ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _bookAlone,
-                  icon: const Icon(Icons.person),
-                  label: const Text('Đánh riêng'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+            ),
+            
+            Transform.translate(
+              offset: const Offset(0, -40),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    // Main Info Card
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          _buildSectionTitle(Icons.sports_tennis, 'Thông tin sân'),
+                          const SizedBox(height: 16),
+                          _buildInfoRow('Tên sân', widget.courtName),
+                          _buildInfoRow('Số sân', widget.subCourt.subCourtName),
+                          const Divider(height: 32),
+                          
+                          _buildSectionTitle(Icons.calendar_today, 'Thời gian'),
+                          const SizedBox(height: 16),
+                          _buildInfoRow('Ngày đặt', DateFormat('dd/MM/yyyy').format(widget.bookingDate)),
+                          _buildInfoRow('Giờ', '${_formatTime(widget.startTime)} - ${_formatTime(widget.endTime)}'),
+                          const Divider(height: 32),
+                          
+                          // Price Section
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Tổng cộng',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  '${formatter.format(totalPrice.toInt())} đ',
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _findTeammates,
-                  icon: const Icon(Icons.people),
-                  label: const Text('Tìm thêm người'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                    const SizedBox(height: 20),
+                    
+                    // User Info Card
+                    const BookingUserInfoBox(),
+                    const SizedBox(height: 30),
+                    
+                    // Action Buttons
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Hình thức chơi',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    
+                    // Button 1: Solo
+                    _buildActionButton(
+                      onPressed: _isLoading ? null : _bookAlone,
+                      icon: Icons.person_outline,
+                      title: 'Đánh riêng / Nhóm riêng',
+                      subtitle: 'Bạn sẽ bao trọn sân trong khung giờ này',
+                      color: Colors.blue[600]!,
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Button 2: Find Teammates
+                    _buildActionButton(
+                      onPressed: _isLoading ? null : _findTeammates,
+                      icon: Icons.group_add_outlined,
+                      title: 'Tìm thêm người chơi',
+                      subtitle: 'Đăng tin để ghép nhóm và chia sẻ chi phí',
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(height: 40),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(IconData icon, String title) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: AppColors.primary),
+        const SizedBox(width: 8),
+        Text(
+          title.toUpperCase(),
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+            color: AppColors.textSecondary,
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 15,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required VoidCallback? onPressed,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: color.withOpacity(0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 16, color: color),
+          ],
         ),
       ),
     );
