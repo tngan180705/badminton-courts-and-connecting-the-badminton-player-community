@@ -1,222 +1,233 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../../../data/models/match_post_model.dart';
 import '../../../../data/models/match_post_view_model.dart';
 
+/// =========================
+/// FILTER PROVIDERS
+/// =========================
 final skillFilterProvider = StateProvider<String>((ref) => 'Tất cả');
 final communityTabProvider = StateProvider<int>((ref) => 0);
 
+/// =========================
+/// CORE JOIN FUNCTION
+/// =========================
 Future<List<MatchPostViewModel>> _fetchAndJoinPosts(
   FirebaseFirestore db,
   List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   DateTime now,
   DateTime sevenDaysLater,
 ) async {
-  print('=== Tổng số docs: ${docs.length}');
   final List<MatchPostViewModel> results = [];
   final nowDateOnly = DateTime(now.year, now.month, now.day);
 
   for (final postDoc in docs) {
     try {
-      final post = MatchPostModel.fromFirestore(postDoc.data(), postDoc.id);
-      print('=== Post: ${post.matchPostId}, bookingId: ${post.bookingId}');
+      final post =
+          MatchPostModel.fromFirestore(postDoc.data(), postDoc.id);
 
-      if (post.bookingId.isEmpty) {
-        print('=== SKIP: bookingId rỗng');
-        continue;
-      }
+      if (post.bookingId.isEmpty) continue;
 
-      final bookingDoc =
+      final bookingSnap =
           await db.collection('bookings').doc(post.bookingId).get();
-      print('=== Booking exists: ${bookingDoc.exists}');
-      if (!bookingDoc.exists) continue;
-      final booking = bookingDoc.data()!;
+
+      if (!bookingSnap.exists || bookingSnap.data() == null) continue;
+
+      final booking = bookingSnap.data() as Map<String, dynamic>;
 
       final rawDate = booking['booking_date'];
-      print('=== booking_date: $rawDate (${rawDate.runtimeType})');
 
       DateTime bookingDate;
+
       if (rawDate is Timestamp) {
         bookingDate = rawDate.toDate();
       } else if (rawDate is String) {
-        bookingDate = DateTime.parse(rawDate);
+        bookingDate = DateTime.tryParse(rawDate) ?? DateTime.now();
       } else {
-        print('=== SKIP: booking_date không hợp lệ');
         continue;
       }
 
       final bookingDateOnly =
           DateTime(bookingDate.year, bookingDate.month, bookingDate.day);
-      print(
-          '=== bookingDateOnly: $bookingDateOnly | nowDateOnly: $nowDateOnly | +7days: $sevenDaysLater');
 
       if (bookingDateOnly.isBefore(nowDateOnly) ||
           bookingDateOnly.isAfter(sevenDaysLater)) {
-        print('=== SKIP: ngoài khoảng 7 ngày');
         continue;
       }
 
-      final subCourtId = booking['sub_court_id'] ?? '';
-      print('=== subCourtId: $subCourtId');
+      /// =========================
+      /// SUB COURT
+      /// =========================
+      final subCourtId = booking['sub_court_id']?.toString() ?? '';
+      if (subCourtId.isEmpty) continue;
 
-      if (subCourtId.isEmpty) {
-        print('=== SKIP: subCourtId rỗng');
-        continue;
-      }
-
-      final subCourtDoc =
+      final subCourtSnap =
           await db.collection('sub_courts').doc(subCourtId).get();
-      print('=== SubCourt exists: ${subCourtDoc.exists}');
-      if (!subCourtDoc.exists) continue;
-      final subCourt = subCourtDoc.data()!;
 
+      if (!subCourtSnap.exists || subCourtSnap.data() == null) continue;
+
+      final subCourt = subCourtSnap.data() as Map<String, dynamic>;
+
+      /// =========================
+      /// COURT
+      /// =========================
       final courtId = subCourt['court_id']?.toString() ?? '';
-      print('=== courtId: $courtId');
+      if (courtId.isEmpty) continue;
 
-      if (courtId.isEmpty) {
-        print('=== SKIP: courtId rỗng');
-        continue;
-      }
+      final courtSnap =
+          await db.collection('courts').doc(courtId).get();
 
-      final courtDoc = await db.collection('courts').doc(courtId).get();
-      print('=== Court exists: ${courtDoc.exists}');
-      if (!courtDoc.exists) continue;
-      final court = courtDoc.data()!;
+      if (!courtSnap.exists || courtSnap.data() == null) continue;
 
-      // 👇 Query user theo firebase_uid
-      final userSnapshot = await db
+      final court = courtSnap.data() as Map<String, dynamic>;
+
+      /// =========================
+      /// HOST
+      /// =========================
+      final userSnap = await db
           .collection('users')
           .where('firebase_uid', isEqualTo: post.hostId)
           .limit(1)
           .get();
 
-      var hostName = 'Người dùng';
-      String? hostAvatarUrl;
-      double hostReliabilityScore = 100.0;
-      if (userSnapshot.docs.isNotEmpty) {
-        hostName = userSnapshot.docs.first.data()['full_name'] ?? 'Người dùng';
-      }
-      print('=== hostId: ${post.hostId}, hostName: $hostName');
+      String hostName = 'Người dùng';
 
-      // 👇 Lấy danh sách members
-      final membersSnapshot = await db
+      if (userSnap.docs.isNotEmpty) {
+        hostName =
+            userSnap.docs.first.data()['full_name'] ?? 'Người dùng';
+      }
+
+      /// =========================
+      /// MEMBERS
+      /// =========================
+      final membersSnap = await db
           .collection('match_members')
           .where('match_post_id', isEqualTo: post.matchPostId)
           .get();
 
-      final memberIds =
-          membersSnapshot.docs.map((doc) => doc['user_id'] as String).toList();
+      final memberIds = membersSnap.docs
+          .map((e) => (e.data()['user_id'] ?? '').toString())
+          .where((e) => e.isNotEmpty)
+          .toList();
 
+      /// =========================
+      /// ADD VIEW MODEL
+      /// =========================
       results.add(MatchPostViewModel(
         matchPostId: post.matchPostId,
         hostId: post.hostId,
         hostName: hostName,
-        hostAvatarUrl: hostAvatarUrl,
-        hostReliabilityScore: hostReliabilityScore,
+        hostAvatarUrl: null,
+        hostReliabilityScore: 100,
         title: post.title,
-        courtName: court['name'] ?? '',
-        subCourtName: subCourt['sub_court_name'] ?? '',
+        courtName: court['name']?.toString() ?? '',
+        subCourtName: subCourt['sub_court_name']?.toString() ?? '',
         bookingDate: bookingDate,
-        startTime: booking['start_time'] ?? '',
-        endTime: booking['end_time'] ?? '',
+        startTime: booking['start_time']?.toString() ?? '',
+        endTime: booking['end_time']?.toString() ?? '',
         slotsNeeded: post.slotsNeeded,
         status: post.status,
         skillLevel: post.skillLevel,
+        subCourtId: subCourtId,
         memberIds: memberIds,
       ));
-      print('=== ✅ Thành công: ${post.matchPostId}');
     } catch (e) {
-      print('=== ❌ LỖI: $e');
       continue;
     }
   }
 
   results.sort((a, b) => a.bookingDate.compareTo(b.bookingDate));
-  print('=== Tổng kết quả: ${results.length}');
   return results;
 }
-
+/// =========================
+/// ALL POSTS
+/// =========================
 final communityPostsProvider =
     FutureProvider<List<MatchPostViewModel>>((ref) async {
   final db = FirebaseFirestore.instance;
+
   final now = DateTime.now();
   final sevenDaysLater = now.add(const Duration(days: 7));
 
-  print('=== communityPostsProvider chạy');
-  final postsSnapshot = await db
+  final snapshot = await db
       .collection('match_posts')
-      .where('status', whereIn: ['open', 'full']).get();
-  print('=== match_posts count: ${postsSnapshot.docs.length}');
+      .where('status', whereIn: ['open', 'full'])
+      .get();
 
-  return _fetchAndJoinPosts(db, postsSnapshot.docs, now, sevenDaysLater);
+  return _fetchAndJoinPosts(
+    db,
+    snapshot.docs,
+    now,
+    sevenDaysLater,
+  );
 });
 
-final myPostsProvider = FutureProvider<List<MatchPostViewModel>>((ref) async {
+/// =========================
+/// MY POSTS
+/// =========================
+final myPostsProvider =
+    FutureProvider<List<MatchPostViewModel>>((ref) async {
   final db = FirebaseFirestore.instance;
-  final currentUser = FirebaseAuth.instance.currentUser;
+  final user = FirebaseAuth.instance.currentUser;
+
+  if (user == null) return [];
+
   final now = DateTime.now();
   final sevenDaysLater = now.add(const Duration(days: 7));
 
-  if (currentUser == null) return [];
-
-  print('=== myPostsProvider chạy, firebaseUid: ${currentUser.uid}');
-
-  // 👇 Lấy trận mình host
-  final myHostedSnapshot = await db
+  /// hosted
+  final hostedSnap = await db
       .collection('match_posts')
-      .where('host_id', isEqualTo: currentUser.uid)
+      .where('host_id', isEqualTo: user.uid)
       .get();
 
-  // 👇 Lấy trận mình join (từ match_members)
-  final myMembershipsSnapshot = await db
+  /// joined
+  final memberSnap = await db
       .collection('match_members')
-      .where('user_id', isEqualTo: currentUser.uid)
+      .where('user_id', isEqualTo: user.uid)
       .get();
 
-  final myJoinedMatchIds = myMembershipsSnapshot.docs
-      .map((doc) => doc['match_post_id'] as String)
-      .toList();
+  final joinedIds =
+      memberSnap.docs.map((e) => e['match_post_id'].toString()).toList();
 
-  // 👇 Lấy match_posts của những trận mình join
-  late final QuerySnapshot<Map<String, dynamic>> myJoinedSnapshot;
-  if (myJoinedMatchIds.isNotEmpty) {
-    myJoinedSnapshot = await db
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> joinedDocs = [];
+
+  if (joinedIds.isNotEmpty) {
+    final snap = await db
         .collection('match_posts')
-        .where(FieldPath.documentId, whereIn: myJoinedMatchIds)
+        .where(FieldPath.documentId, whereIn: joinedIds)
         .get();
-  } else {
-    myJoinedSnapshot = await db
-        .collection('match_posts')
-        .where('match_post_id', isEqualTo: 'nonexistent_id')
-        .get();
+
+    joinedDocs = snap.docs;
   }
 
-  // 👇 Merge cả 2 danh sách + bỏ trùng
   final allDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-  final uniqueIds = <String>{};
+  final unique = <String>{};
 
-  for (final doc in myHostedSnapshot.docs) {
-    if (uniqueIds.add(doc.id)) allDocs.add(doc);
+  for (final d in hostedSnap.docs) {
+    if (unique.add(d.id)) allDocs.add(d);
   }
 
-  for (final doc in myJoinedSnapshot.docs) {
-    if (uniqueIds.add(doc.id)) allDocs.add(doc);
+  for (final d in joinedDocs) {
+    if (unique.add(d.id)) allDocs.add(d);
   }
-
-  print('=== my match_posts + joined count: ${allDocs.length}');
 
   return _fetchAndJoinPosts(db, allDocs, now, sevenDaysLater);
 });
 
+/// =========================
+/// FILTERED POSTS
+/// =========================
 final filteredPostsProvider =
     FutureProvider<List<MatchPostViewModel>>((ref) async {
   final posts = await ref.watch(communityPostsProvider.future);
-  final skillFilter = ref.watch(skillFilterProvider);
+  final filter = ref.watch(skillFilterProvider);
 
-  // Lọc status 'full' ra khỏi "Tất cả trận"
-  var filtered = posts.where((p) => p.status != 'full').toList();
+  final base = posts.where((p) => p.status != 'full').toList();
 
-  if (skillFilter == 'Tất cả') return filtered;
-  return filtered.where((p) => p.skillLevel == skillFilter).toList();
+  if (filter == 'Tất cả') return base;
+
+  return base.where((p) => p.skillLevel == filter).toList();
 });
