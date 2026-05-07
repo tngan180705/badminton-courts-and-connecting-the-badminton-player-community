@@ -54,10 +54,17 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
       data: (data) => data?['full_name'] ?? 'Người dùng',
       orElse: () => 'Người dùng',
     );
+    final avatarBase64 = userAsync.maybeWhen(
+  data: (data) => data?['avatar_base64'],
+  orElse: () => null,
+);
 
     return Scaffold(
       backgroundColor: const Color(0xFFE5E5CA),
-      appBar: MainHeader(userName: userName),
+      appBar: MainHeader(
+  userName: userName,
+  avatarBase64: avatarBase64,
+),
 
       body: SingleChildScrollView(
         child: Column(

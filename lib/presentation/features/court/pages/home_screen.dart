@@ -15,14 +15,24 @@ import '../../../features/community/pages/community_screen.dart';
 
 final userDataProvider = StreamProvider<Map<String, dynamic>?>((ref) {
   final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return Stream.value(null);
+
+  if (user == null) {
+    return Stream.value(null);
+  }
+
   return FirebaseFirestore.instance
       .collection('users')
-      .doc(user.uid)
+      .where('firebase_uid', isEqualTo: user.uid)
+      .limit(1)
       .snapshots()
-      .map((snapshot) => snapshot.data());
-});
+      .map((snapshot) {
+    if (snapshot.docs.isEmpty) {
+      return null;
+    }
 
+    return snapshot.docs.first.data();
+  });
+});
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -47,7 +57,10 @@ class HomeScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: userAsync.when(
                   data: (data) =>
-                      MainHeader(userName: data?['full_name'] ?? 'Người dùng'),
+                      MainHeader(
+  userName: data?['full_name'] ?? 'Người dùng',
+  avatarBase64: data?['avatar_base64'],
+),
                   loading: () => const MainHeader(userName: '...'),
                   error: (_, __) =>
                       const MainHeader(userName: 'Người dùng'),

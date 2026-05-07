@@ -3,15 +3,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class UserModel {
   final String userId;
   final String fullName;
-  final String email; // Mới bổ sung
+  final String email;
   final String phone;
-  final String gender; // Mới bổ sung
-  final String avatarUrl;
+  final String gender;
+
+  final String avatarBase64;
+
   final String role;
   final String skillLevel;
-  final int reliabilityScore;
+
+  final double reliabilityScore;
   final double walletBalance;
+
   final bool isActive;
+
   final DateTime createdAt;
 
   UserModel({
@@ -20,7 +25,7 @@ class UserModel {
     required this.email,
     required this.phone,
     required this.gender,
-    required this.avatarUrl,
+    required this.avatarBase64,
     required this.role,
     required this.skillLevel,
     required this.reliabilityScore,
@@ -29,34 +34,44 @@ class UserModel {
     required this.createdAt,
   });
 
-  // Chuyển đổi từ JSON (Firestore) sang Object Flutter
-  factory UserModel.fromFirestore(Map<String, dynamic> json, String id) {
+  factory UserModel.fromFirestore(
+    Map<String, dynamic> json,
+    String id,
+  ) {
     return UserModel(
       userId: id,
       fullName: json['full_name'] ?? '',
       email: json['email'] ?? '',
       phone: json['phone'] ?? '',
       gender: json['gender'] ?? 'Nam',
-      avatarUrl: json['avatar_url'] ?? '',
+
+      avatarBase64: json['avatar_base64'] ?? '',
+
       role: json['role'] ?? 'player',
+
       skillLevel: json['skill_level'] ?? 'Mới bắt đầu',
-      reliabilityScore: json['reliability_score'] ?? 100,
-      walletBalance: (json['wallet_balance'] ?? 0).toDouble(),
+
+      reliabilityScore:
+          (json['reliability_score'] ?? 100).toDouble(),
+
+      walletBalance:
+          (json['wallet_balance'] ?? 0).toDouble(),
+
       isActive: json['is_active'] ?? true,
-      createdAt: (json['created_at'] != null)
+
+      createdAt: json['created_at'] != null
           ? (json['created_at'] as Timestamp).toDate()
           : DateTime.now(),
     );
   }
 
-  // Chuyển đổi từ Object Flutter sang JSON để đẩy lên Firestore
   Map<String, dynamic> toFirestore() {
     return {
       'full_name': fullName,
       'email': email,
       'phone': phone,
       'gender': gender,
-      'avatar_url': avatarUrl,
+      'avatar_base64': avatarBase64,
       'role': role,
       'skill_level': skillLevel,
       'reliability_score': reliabilityScore,

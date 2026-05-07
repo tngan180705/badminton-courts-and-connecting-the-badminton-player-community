@@ -27,19 +27,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   // Logic chọn ảnh giữ nguyên vì nó là local UI state
   Future<void> _pickImage() async {
-    try {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 50,
-      );
-      if (pickedFile != null) {
-        setState(() => _imageFile = File(pickedFile.path));
-      }
-    } catch (e) {
-      debugPrint("Lỗi chọn ảnh: $e");
+  try {
+    final picker = ImagePicker();
+
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+
+      imageQuality: 20,
+      maxWidth: 300,
+      maxHeight: 300,
+    );
+
+    if (pickedFile != null) {
+      setState(() {
+        _imageFile = File(pickedFile.path);
+      });
+
+      print('📸 Selected image: ${pickedFile.path}');
     }
+  } catch (e) {
+    print('❌ Pick image error: $e');
   }
+}
 
   void _onRegister() {
     print('📸 Image file: $_imageFile');
