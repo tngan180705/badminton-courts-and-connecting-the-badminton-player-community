@@ -13,8 +13,7 @@ import '../../community/pages/community_screen.dart';
 import '../../auth/providers/user_provider.dart';
 import '../../../../data/models/sub_court_model.dart';
 import '../../../../data/models/match_post_view_model.dart';
-
-// ✅ FIX: giữ import nhưng đảm bảo tồn tại file
+import '../../court/widgets/court_detail_widgets.dart';
 import '../providers/user_repository_provider.dart';
 
 class CourtDetailScreen extends ConsumerStatefulWidget {
@@ -58,191 +57,36 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFE5E5CA),
       appBar: MainHeader(userName: userName),
-
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Tiêu đề
+            CourtHeader(title: 'Chi tiết ${widget.subCourt.subCourtName}'),
 
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Chi tiết ${widget.subCourt.subCourtName}',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF407F3E),
-                ),
-              ),
-            ),
+            // Ảnh carousel
+            CourtImageCarousel(images: courtImages),
 
-            SizedBox(
-              height: 220,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: courtImages.length,
-                itemBuilder: (context, index) => Container(
-                  width: 300,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    image: DecorationImage(
-                      image: AssetImage(courtImages[index]),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              ),
+            const SizedBox(height: 16),
+
+            // Giá + Yêu thích + Đặt sân
+            CourtPricingCard(
+              courtName: widget.courtName,
+              subCourt: widget.subCourt,
+              onFavoriteChanged: (isFav) {
+                setState(() {});
+              },
             ),
 
             const SizedBox(height: 16),
 
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  )
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-
-                  Text(
-                    '${widget.courtName} - ${widget.subCourt.subCourtName}',
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        debugPrint("Đặt sân ${widget.subCourt.subCourtName}");
-                      },
-                      icon: const Icon(Icons.calendar_month),
-                      label: const Text("Đặt sân ngay"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF407F3E),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-
-                      IconButton(
-                        onPressed: () {
-                          setState(() {
-                            isFavorite = !isFavorite;
-                          });
-                        },
-                        icon: Icon(
-                          isFavorite
-                              ? Icons.favorite
-                              : Icons.favorite_border,
-                          color: Colors.red,
-                        ),
-                      ),
-
-                      const Row(
-                        children: [
-                          Icon(Icons.payments_outlined,
-                              color: Colors.orange, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            '150.000đ / giờ',
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Text(
-                      '🔥 Giờ vàng (5h-7h & 20h-22h): Chỉ 40.000đ/giờ',
-                      style: TextStyle(
-                        color: Colors.deepOrange,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            // Khung giờ trống
+            AvailableTimeSlotsWidget(
+              subCourt: widget.subCourt,
+              selectedDate: DateTime.now(),
             ),
 
             const SizedBox(height: 16),
-
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Khung giờ trống',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: List.generate(8, (index) {
-                  final hour = 8 + index;
-                  final isBooked = index == 2 || index == 5;
-
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isBooked
-                          ? Colors.grey.shade300
-                          : Colors.green.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      "$hour:00",
-                      style: TextStyle(
-                        color: isBooked
-                            ? Colors.grey
-                            : Colors.green.shade800,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
 
             const SizedBox(height: 16),
 
@@ -251,32 +95,33 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
               child: SizedBox(
                 height: 200,
                 child: FlutterMap(
-  options: const MapOptions(
-    initialCenter: LatLng(10.73, 106.7),
-    initialZoom: 15.0,
-  ),
-  children: [
-   TileLayer(
-  urlTemplate: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-  subdomains: const ['a', 'b', 'c'],
-  userAgentPackageName: 'com.badminton.app',
-),
-    MarkerLayer(
-      markers: [
-        Marker(
-          point: LatLng(10.73, 106.7),
-          width: 40,
-          height: 40,
-          child: const Icon(
-            Icons.location_on,
-            color: Colors.red,
-            size: 40,
-          ),
-        ),
-      ],
-    ),
-  ],
-),
+                  options: const MapOptions(
+                    initialCenter: LatLng(10.73, 106.7),
+                    initialZoom: 15.0,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+                      subdomains: const ['a', 'b', 'c'],
+                      userAgentPackageName: 'com.badminton.app',
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: LatLng(10.73, 106.7),
+                          width: 40,
+                          height: 40,
+                          child: const Icon(
+                            Icons.location_on,
+                            color: Colors.red,
+                            size: 40,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -286,8 +131,7 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'Đánh giá người dùng',
-                style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
 
@@ -311,8 +155,7 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
                   },
                 );
               },
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text("Lỗi tải đánh giá: $e"),
@@ -336,9 +179,8 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
             postsAsync.when(
               data: (allPosts) {
                 final filteredPosts = allPosts
-                    .where((p) =>
-                        p.subCourtName ==
-                        widget.subCourt.subCourtName)
+                    .where(
+                        (p) => p.subCourtName == widget.subCourt.subCourtName)
                     .take(4)
                     .toList();
 
@@ -353,14 +195,12 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
                   height: 280,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: filteredPosts.length,
                     itemBuilder: (context, index) {
                       final match = filteredPosts[index];
                       return Container(
-                        width:
-                            MediaQuery.of(context).size.width * 0.85,
+                        width: MediaQuery.of(context).size.width * 0.85,
                         margin: const EdgeInsets.only(right: 12),
                         child: MatchCard(
                           match: match,
@@ -371,26 +211,20 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
                   ),
                 );
               },
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (err, _) =>
-                  Center(child: Text('Lỗi: $err')),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, _) => Center(child: Text('Lỗi: $err')),
             ),
 
             const SizedBox(height: 120),
           ],
         ),
       ),
-
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.smart_toy_outlined),
       ),
-
-      floatingActionButtonLocation:
-          FloatingActionButtonLocation.centerDocked,
-
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: MainFooter(
         currentIndex: 0,
         onTap: (index) {
@@ -400,8 +234,7 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    const CommunityScreen(),
+                builder: (context) => const CommunityScreen(),
               ),
             );
           }
@@ -425,26 +258,20 @@ class _ReviewTile extends StatelessWidget {
       leading: const CircleAvatar(
         child: Icon(Icons.person),
       ),
-
       title: Text(review.fromUserId ?? "Người dùng"),
-
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: List.generate(5, (index) {
               return Icon(
-                index < rating
-                    ? Icons.star
-                    : Icons.star_border,
+                index < rating ? Icons.star : Icons.star_border,
                 color: Colors.amber,
                 size: 16,
               );
             }),
           ),
-
           const SizedBox(height: 4),
-
           Text(review.comment ?? ""),
         ],
       ),

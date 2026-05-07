@@ -8,6 +8,32 @@ class MatchDetailDialog extends StatelessWidget {
   final MatchPostViewModel match;
 
   const MatchDetailDialog({super.key, required this.match});
+  double _calculateActualPrice() {
+    final start = int.parse(match.startTime.split(':')[0]);
+    final end = int.parse(match.endTime.split(':')[0]);
+    final endMin = int.parse(match.endTime.split(':')[1]);
+
+    double totalPrice = 0;
+
+    for (int h = start; h < end; h++) {
+      if ((h >= 5 && h < 7) || (h >= 20 && h < 22)) {
+        totalPrice += 40000;
+      } else {
+        totalPrice += 150000;
+      }
+    }
+
+    if (endMin > 0) {
+      final lastHour = end;
+      final pricePerHour =
+          (lastHour >= 5 && lastHour < 7) || (lastHour >= 20 && lastHour < 22)
+              ? 40000
+              : 150000;
+      totalPrice += (endMin / 60) * pricePerHour;
+    }
+
+    return totalPrice;
+  }
 
   @override
   Widget build(BuildContext context) {
