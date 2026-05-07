@@ -1,3 +1,4 @@
+import 'package:badminton_app/presentation/features/profile/pages/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -41,14 +42,7 @@ class CommunityScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFE5E5CA),
-      appBar: userAsync.when(
-  data: (data) => MainHeader(
-    userName: data?['full_name'] ?? 'Người dùng',
-    avatarBase64: data?['avatar_base64'],
-  ),
-  loading: () => const MainHeader(userName: '...'),
-  error: (_, __) => const MainHeader(userName: 'Người dùng'),
-),
+      appBar: const MainHeader(),
       body: Column(
         children: [
           const Padding(
@@ -79,9 +73,18 @@ class CommunityScreen extends ConsumerWidget {
       ),
       bottomNavigationBar: MainFooter(
         currentIndex: 1,
-        onTap: (index) {
-          if (index == 0) Navigator.pop(context);
-        },
+       onTap: (index) {
+  if (index == 0) Navigator.pop(context);
+
+  if (index == 3) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ProfileScreen(),
+      ),
+    );
+  }
+},
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openPostSheet(context),
