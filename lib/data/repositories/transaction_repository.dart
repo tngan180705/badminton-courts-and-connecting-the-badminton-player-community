@@ -1,45 +1,38 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:io';
 
 class UserRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  // 👇 Generate ID U_001, U_002, ...
+  /// Generate ID U_001, U_002...
   Future<String> _generateUserId() async {
     final snapshot = await _firestore.collection('users').get();
 
     int maxNum = 0;
+
     for (final doc in snapshot.docs) {
       final id = doc.id;
+
       if (id.startsWith('U_')) {
         final numStr = id.replaceFirst('U_', '');
         final num = int.tryParse(numStr) ?? 0;
-        if (num > maxNum) maxNum = num;
+
+        if (num > maxNum) {
+          maxNum = num;
+        }
       }
     }
 
     final nextNum = maxNum + 1;
+
     return 'U_${nextNum.toString().padLeft(3, '0')}';
   }
 
-  // 👇 Upload avatar
-  Future<String?> _uploadAndSyncAvatar(String userId, File imageFile) async {
-    try {
-      final fileName = 'users/$userId/avatar.jpg';
-      final ref = _storage.ref(fileName);
-      await ref.putFile(imageFile);
-      return await ref.getDownloadURL();
-    } catch (e) {
-      print('❌ Avatar upload error: $e');
-      return null;
-    }
-  }
-
-  // 👇 Register user
+  /// Register User
   Future<void> registerUser({
     required String email,
     required String password,
@@ -50,23 +43,32 @@ class UserRepository {
     File? imageFile,
   }) async {
     try {
-      // 1. Tạo tài khoản Firebase
-      final userCredential = await _auth.createUserWithEmailAndPassword(
+      print('🔄 Registering user...');
+
+      /// 1. Create Firebase Auth
+      final userCredential =
+          await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+
       final firebaseUid = userCredential.user!.uid;
 
-      // 2. Generate ID U_001, U_002, ...
+      /// 2. Generate User ID
       final userId = await _generateUserId();
 
-      // 3. Upload avatar nếu có
-      String? avatarUrl;
+      /// 3. Convert image -> Base64
+      String avatarBase64 = '';
+
       if (imageFile != null) {
-        avatarUrl = await _uploadAndSyncAvatar(userId, imageFile);
+        final bytes = await imageFile.readAsBytes();
+
+        avatarBase64 = base64Encode(bytes);
+
+        print('✅ Avatar converted to Base64');
       }
 
-      // 4. Lưu user vào Firestore
+      /// 4. Save Firestore
       await _firestore.collection('users').doc(userId).set({
         'firebase_uid': firebaseUid,
         'full_name': fullName,
@@ -74,15 +76,26 @@ class UserRepository {
         'phone': phone,
         'gender': gender,
         'skill_level': skillLevel,
-        'avatar_url': avatarUrl ?? '',
-        'reliability_score': 0.0,
+        'avatar_base64': avatarBase64,
+        'reliability_score': 100.0,
         'wallet_balance': 0.0,
         'created_at': Timestamp.now(),
       });
 
+      /// 5. Save mapping
+      await _firestore
+          .collection('users_by_firebase_uid')
+          .doc(firebaseUid)
+          .set({
+        'user_id': userId,
+        'created_at': Timestamp.now(),
+      });
+
       print('✅ User created: $userId');
-    } catch (e) {
+    } catch (e, stack) {
       print('❌ Register error: $e');
+      print(stack);
+
       rethrow;
     }
   }

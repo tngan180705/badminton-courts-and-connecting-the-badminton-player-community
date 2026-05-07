@@ -3,10 +3,12 @@ import 'package:badminton_app/presentation/features/court/providers/user_reposit
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 final userDataProvider = StreamProvider<Map<String, dynamic>?>((ref) {
   final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return Stream.value(null);
+
+  if (user == null) {
+    return Stream.value(null);
+  }
 
   return FirebaseFirestore.instance
       .collection('users')
@@ -14,7 +16,10 @@ final userDataProvider = StreamProvider<Map<String, dynamic>?>((ref) {
       .limit(1)
       .snapshots()
       .map((snapshot) {
-    if (snapshot.docs.isEmpty) return null;
+    if (snapshot.docs.isEmpty) {
+      return null;
+    }
+
     return snapshot.docs.first.data();
   });
 });
