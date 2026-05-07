@@ -41,7 +41,14 @@ class CommunityScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFE5E5CA),
-      appBar: MainHeader(userName: userName),
+      appBar: userAsync.when(
+  data: (data) => MainHeader(
+    userName: data?['full_name'] ?? 'Người dùng',
+    avatarBase64: data?['avatar_base64'],
+  ),
+  loading: () => const MainHeader(userName: '...'),
+  error: (_, __) => const MainHeader(userName: 'Người dùng'),
+),
       body: Column(
         children: [
           const Padding(

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../data/models/match_post_view_model.dart';
-
+import 'dart:convert';
 class MatchCard extends StatelessWidget {
   final MatchPostViewModel match;
   final bool isMyPost;
@@ -47,18 +47,29 @@ class MatchCard extends StatelessWidget {
           Row(
             children: [
               CircleAvatar(
-                radius: 22,
-                backgroundColor: AppColors.secondary.withOpacity(0.3),
-                backgroundImage: match.hostAvatarUrl != null &&
-                        match.hostAvatarUrl!.isNotEmpty
-                    ? NetworkImage(match.hostAvatarUrl!)
-                    : null,
-                child: (match.hostAvatarUrl == null ||
-                        match.hostAvatarUrl!.isEmpty)
-                    ? const Icon(Icons.person,
-                        color: AppColors.secondary, size: 24)
-                    : null,
+  radius: 22,
+  backgroundColor: AppColors.secondary.withOpacity(0.3),
+
+  backgroundImage:
+      match.hostAvatarBase64 != null &&
+              match.hostAvatarBase64!.isNotEmpty
+          ? MemoryImage(
+              base64Decode(
+                match.hostAvatarBase64!,
               ),
+            )
+          : null,
+
+  child:
+      match.hostAvatarBase64 == null ||
+              match.hostAvatarBase64!.isEmpty
+          ? const Icon(
+              Icons.person,
+              color: AppColors.secondary,
+              size: 24,
+            )
+          : null,
+),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(

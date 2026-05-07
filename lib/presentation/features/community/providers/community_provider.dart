@@ -119,7 +119,8 @@ Future<List<MatchPostViewModel>> _fetchAndJoinPosts(
         matchPostId: post.matchPostId,
         hostId: post.hostId,
         hostName: hostName,
-        hostAvatarUrl: null,
+        hostAvatarBase64:
+    userSnap.docs.first.data()['avatar_base64'] ?? '',
         hostReliabilityScore: 100,
         title: post.title,
         courtName: court['name']?.toString() ?? '',
