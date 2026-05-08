@@ -82,15 +82,6 @@ class UserRepository {
         'created_at': Timestamp.now(),
       });
 
-      /// 5. Save mapping
-      await _firestore
-          .collection('users_by_firebase_uid')
-          .doc(firebaseUid)
-          .set({
-        'user_id': userId,
-        'created_at': Timestamp.now(),
-      });
-
       print('✅ User created: $userId');
     } catch (e, stack) {
       print('❌ Register error: $e');
