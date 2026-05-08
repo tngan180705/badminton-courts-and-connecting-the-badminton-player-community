@@ -84,15 +84,6 @@ class UserRepository {
         'created_at': Timestamp.now(),
       });
 
-      /// 5. Save mapping
-      await _firestore
-          .collection('users_by_firebase_uid')
-          .doc(firebaseUid)
-          .set({
-        'user_id': userId,
-        'created_at': Timestamp.now(),
-      });
-
       print('✅ User saved: $userId');
     } catch (e, stack) {
       print('❌ Register Error: $e');
@@ -110,5 +101,13 @@ class UserRepository {
     if (!doc.exists) return null;
 
     return UserModel.fromFirestore(doc.data()!, doc.id);
+  }
+
+  /// Update User Info
+  Future<void> updateUser({
+    required String userId,
+    required Map<String, dynamic> data,
+  }) async {
+    await _firestore.collection('users').doc(userId).update(data);
   }
 }

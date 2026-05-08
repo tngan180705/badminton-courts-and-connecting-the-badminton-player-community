@@ -7,6 +7,7 @@ import '../providers/login_provider.dart';
 import '../pages/register_screen.dart';
 import '../pages/forgot_password_screen.dart';
 import '../../court/pages/home_screen.dart'; // Import trang Home của bạn
+import '../providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends ConsumerWidget {

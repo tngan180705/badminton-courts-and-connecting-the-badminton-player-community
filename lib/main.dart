@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:intl/date_symbol_data_local.dart';
+
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 // Import đúng cấu trúc thư mục feature-based
@@ -15,7 +17,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await initializeDateFormatting('vi_VN', null);
   await FirebaseAuth.instance.signOut();
+
   runApp(
     const ProviderScope(
       child: MyApp(),

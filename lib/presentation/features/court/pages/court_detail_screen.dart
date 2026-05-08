@@ -12,6 +12,8 @@ import '../../community/widgets/match_detail_dialog.dart';
 import '../../community/providers/community_provider.dart';
 import '../../community/pages/community_screen.dart';
 import '../../community/pages/match_join_handler.dart';
+import '../../activity/pages/activity_screen.dart';
+import '../../court/pages/home_screen.dart';
 import '../../auth/providers/user_provider.dart';
 import '../../../../data/models/sub_court_model.dart';
 import '../../../../data/models/match_post_view_model.dart';
@@ -256,12 +258,23 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
         currentIndex: 0,
         onTap: (index) {
           if (index == 0) {
-            Navigator.pop(context);
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => HomeScreen()),
+              (route) => false,
+            );
           } else if (index == 1) {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => const CommunityScreen(),
+              ),
+            );
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ActivityScreen(),
               ),
             );
           }

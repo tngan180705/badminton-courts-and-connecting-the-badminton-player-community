@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../data/models/match_post_model.dart';
 import '../../../../data/models/match_post_view_model.dart';
 
+import '../../auth/providers/auth_state_provider.dart';
+
 /// =========================
 /// FILTER PROVIDERS
 /// =========================
@@ -178,11 +180,12 @@ final communityPostsProvider = StreamProvider<List<MatchPostViewModel>>((ref) {
 /// MY POSTS (Real-time)
 /// =========================
 final myPostsProvider = StreamProvider<List<MatchPostViewModel>>((ref) {
-  final db = FirebaseFirestore.instance;
-  final user = FirebaseAuth.instance.currentUser;
-
+  final authState = ref.watch(authStateChangesProvider);
+  final user = authState.value;
+  
   if (user == null) return Stream.value([]);
-
+  
+  final db = FirebaseFirestore.instance;
   final now = DateTime.now();
   final sevenDaysLater = now.add(const Duration(days: 7));
 

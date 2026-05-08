@@ -224,55 +224,132 @@ class _MembersList extends StatelessWidget {
 
             final avatar = member['avatarBase64'];
 
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppColors.secondary.withOpacity(0.3),
-                    backgroundImage: (avatar != null && avatar.isNotEmpty)
-                        ? MemoryImage(base64Decode(avatar))
-                        : null,
-                    child: (avatar == null || avatar.isEmpty)
-                        ? const Icon(Icons.person,
-                            color: AppColors.secondary)
-                        : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          member['full_name'] ?? 'Người dùng',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        if (member['isHost'] == true)
-                          const Text(
-                            'Host',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 12,
-                            ),
+            return InkWell(
+              onTap: () => _showUserDetail(context, member),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.secondary.withOpacity(0.3),
+                      backgroundImage: (avatar != null && avatar.isNotEmpty)
+                          ? MemoryImage(base64Decode(avatar))
+                          : null,
+                      child: (avatar == null || avatar.isEmpty)
+                          ? const Icon(Icons.person,
+                              color: AppColors.secondary)
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            member['full_name'] ?? 'Người dùng',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                      ],
+                          if (member['isHost'] == true)
+                            const Text(
+                              'Host',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  if (member['rating'] != null)
-                    Row(
-                      children: [
-                        Text(member['rating']),
-                        const Icon(Icons.star,
-                            color: Colors.amber, size: 14),
-                      ],
-                    ),
-                ],
+                    if (member['rating'] != null)
+                      Row(
+                        children: [
+                          Text(member['rating']),
+                          const Icon(Icons.star,
+                              color: Colors.amber, size: 14),
+                        ],
+                      ),
+                  ],
+                ),
               ),
             );
           },
         );
       },
+    );
+  }
+
+  void _showUserDetail(BuildContext context, Map<String, dynamic> user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: AppColors.secondary.withOpacity(0.3),
+              backgroundImage: (user['avatar_base64'] != null && user['avatar_base64'].isNotEmpty)
+                  ? MemoryImage(base64Decode(user['avatar_base64']))
+                  : null,
+              child: (user['avatar_base64'] == null || user['avatar_base64'].isEmpty)
+                  ? const Icon(Icons.person, color: AppColors.secondary, size: 40)
+                  : null,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              user['full_name'] ?? 'Người dùng',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  user['rating'] ?? '5.0',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const Icon(Icons.star, color: Colors.amber, size: 20),
+                const SizedBox(width: 4),
+                const Text('(Độ tin cậy)', style: TextStyle(color: Colors.grey, fontSize: 12)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            _buildDetailItem(Icons.phone, 'Số điện thoại', user['phone'] ?? 'Chưa cập nhật'),
+            _buildDetailItem(Icons.email, 'Email', user['email'] ?? 'Chưa cập nhật'),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Đóng', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailItem(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Text('$label: ', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+        ],
+      ),
     );
   }
 
@@ -290,7 +367,7 @@ class _MembersList extends StatelessWidget {
       final host = hostSnapshot.docs.first.data();
 
       members.add({
-        'full_name': host['full_name'],
+        ...host,
         'avatarBase64': host['avatar_base64'],
         'isHost': true,
         'rating':
@@ -317,7 +394,7 @@ class _MembersList extends StatelessWidget {
         final u = userSnap.docs.first.data();
 
         members.add({
-          'full_name': u['full_name'],
+          ...u,
           'avatarBase64': u['avatar_base64'],
           'isHost': false,
           'rating':

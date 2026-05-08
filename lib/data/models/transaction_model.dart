@@ -1,11 +1,13 @@
 class TransactionModel {
   final String transactionId; // Prefix: TX_
   final String userId;
-  final String? bookingId; // Nullable cho trường hợp nạp/rút tiền
+  final String? bookingId;
   final double amount;
-  final String type; // deposit, payment, refund, withdraw
-  final String paymentMethod;
-  final String status;
+  final String type; // coc, thanh toán, hoàn tiền, rút tiền
+  final String paymentType; // full_payment, deposit
+  final String paymentMethod; // ck, tiền mặt
+  final String status; // pending, confirmed, rejected
+  final String transferContent; // Nội dung chuyển khoản (không dấu)
   final DateTime createdAt;
 
   TransactionModel({
@@ -14,12 +16,13 @@ class TransactionModel {
     this.bookingId,
     required this.amount,
     required this.type,
+    required this.paymentType,
     required this.paymentMethod,
     required this.status,
+    required this.transferContent,
     required this.createdAt,
   });
 
-  // Chuyển từ Firestore JSON sang Object Flutter
   factory TransactionModel.fromFirestore(Map<String, dynamic> json, String id) {
     return TransactionModel(
       transactionId: id,
@@ -27,24 +30,26 @@ class TransactionModel {
       bookingId: json['booking_id'],
       amount: (json['amount'] ?? 0).toDouble(),
       type: json['type'] ?? 'payment',
-      paymentMethod: json['payment_method'] ?? 'cash',
+      paymentType: json['payment_type'] ?? 'full_payment',
+      paymentMethod: json['payment_method'] ?? 'bank_transfer',
       status: json['status'] ?? 'pending',
+      transferContent: json['transfer_content'] ?? '',
       createdAt: (json['created_at'] != null)
           ? json['created_at'].toDate()
           : DateTime.now(),
     );
   }
 
-  // Chuyển từ Object Flutter sang JSON để lưu lên Firebase
-  // Hàm này sẽ giúp TransactionRepository hết báo lỗi gạch đỏ
   Map<String, dynamic> toFirestore() {
     return {
       'user_id': userId,
-      'booking_id': bookingId, // Sẽ lưu là null nếu không có ID
+      'booking_id': bookingId,
       'amount': amount,
       'type': type,
+      'payment_type': paymentType,
       'payment_method': paymentMethod,
       'status': status,
+      'transfer_content': transferContent,
       'created_at': createdAt,
     };
   }

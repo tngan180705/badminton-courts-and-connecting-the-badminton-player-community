@@ -12,27 +12,11 @@ import '../../auth/providers/user_provider.dart';
 import '../../../common_widgets/main_header.dart';
 import '../../../common_widgets/main_footer.dart';
 import '../../../features/community/pages/community_screen.dart';
+import '../../activity/pages/activity_screen.dart';
+import '../../profile/pages/profile_screen.dart';
 
-final userDataProvider = StreamProvider<Map<String, dynamic>?>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
 
-  if (user == null) {
-    return Stream.value(null);
-  }
 
-  return FirebaseFirestore.instance
-      .collection('users')
-      .where('firebase_uid', isEqualTo: user.uid)
-      .limit(1)
-      .snapshots()
-      .map((snapshot) {
-    if (snapshot.docs.isEmpty) {
-      return null;
-    }
-
-    return snapshot.docs.first.data();
-  });
-});
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -158,6 +142,20 @@ class HomeScreen extends ConsumerWidget {
               context,
               MaterialPageRoute(
                 builder: (_) => const CommunityScreen(),
+              ),
+            );
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ActivityScreen(),
+              ),
+            );
+          } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ProfileScreen(),
               ),
             );
           }
