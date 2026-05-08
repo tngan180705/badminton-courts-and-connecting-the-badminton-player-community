@@ -7,9 +7,9 @@ import '../../auth/providers/user_provider.dart';
 import '../../../common_widgets/main_header.dart';
 import '../widgets/profile_info.dart';
 import '../widgets/reputation_bar.dart';
-import '../widgets/wallet_card.dart';
 import '../widgets/profile_menu_item.dart';
 import './edit_profile_screen.dart';
+import '../../review/pages/user_reviews_screen.dart';
 import '../../auth/pages/login_screen.dart';
 import '../../court/pages/home_screen.dart';
 import '../../community/pages/community_screen.dart';
@@ -72,8 +72,22 @@ class ProfileScreen extends ConsumerWidget {
                         const SizedBox(height: 20),
                         ReputationBar(score: score),
                         const SizedBox(height: 30),
-                        WalletCard(balance: wallet),
-                        const SizedBox(height: 30),
+                        ProfileMenuItem(
+                          icon: Icons.star_border,
+                          title: 'Xem đánh giá của bạn',
+                          onTap: () {
+                            final uid = FirebaseAuth.instance.currentUser?.uid;
+                            if (uid != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => UserReviewsScreen(userId: uid),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 10),
                         ProfileMenuItem(
                           icon: Icons.settings_outlined,
                           title: 'Chỉnh sửa thông tin',

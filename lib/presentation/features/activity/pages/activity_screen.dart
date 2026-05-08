@@ -33,7 +33,7 @@ Future<List<Map<String, dynamic>>> _fetchDetails(List<QueryDocumentSnapshot<Map<
 
       if (courtDoc.exists) {
         final courtData = courtDoc.data()!;
-        data['sub_court_name'] = subCourtData['name'];
+        data['sub_court_name'] = subCourtData['sub_court_name'] ?? 'Sân chưa đặt tên';
         data['court_name'] = courtData['name'];
       }
     }
@@ -95,7 +95,7 @@ final joinedBookingsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) 
             final courtDoc = await db.collection('courts').doc(courtId).get();
             if (courtDoc.exists) {
               final courtData = courtDoc.data()!;
-              data['sub_court_name'] = subCourtData['name'];
+              data['sub_court_name'] = subCourtData['sub_court_name'] ?? 'Sân chưa đặt tên';
               data['court_name'] = courtData['name'];
             }
           }
