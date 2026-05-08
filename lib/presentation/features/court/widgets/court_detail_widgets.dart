@@ -342,40 +342,6 @@ class AvailableTimeSlotsWidget extends StatelessWidget {
   }
 }
 
-// 👇 Widget Review Tile
-class ReviewTile extends StatelessWidget {
-  final dynamic review;
-
-  const ReviewTile({super.key, required this.review});
-
-  @override
-  Widget build(BuildContext context) {
-    final int rating = (review.ratingScore ?? 0);
-
-    return ListTile(
-      leading: const CircleAvatar(
-        child: Icon(Icons.person),
-      ),
-      title: Text(review.fromUserId ?? "Người dùng"),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: List.generate(5, (index) {
-              return Icon(
-                index < rating ? Icons.star : Icons.star_border,
-                color: Colors.amber,
-                size: 16,
-              );
-            }),
-          ),
-          const SizedBox(height: 4),
-          Text(review.comment ?? ""),
-        ],
-      ),
-    );
-  }
-}
 
 // 👇 Widget CourtImageCarousel
 class CourtImageCarousel extends StatelessWidget {

@@ -1,4 +1,4 @@
-import 'package:badminton_app/presentation/features/court/providers/review_provider.dart';
+import 'package:badminton_app/presentation/features/review/providers/review_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +19,7 @@ import '../../../../data/models/sub_court_model.dart';
 import '../../../../data/models/match_post_view_model.dart';
 import '../../court/widgets/court_detail_widgets.dart';
 import '../providers/user_repository_provider.dart';
+import '../../review/widgets/review_tile.dart';
 
 class CourtDetailScreen extends ConsumerStatefulWidget {
   final String courtName;
@@ -36,6 +37,7 @@ class CourtDetailScreen extends ConsumerStatefulWidget {
 
 class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
   bool isFavorite = false;
+  int? _selectedStarFilter;
 
   void _showMatchDetail(BuildContext context, MatchPostViewModel match) {
     showDialog(
@@ -51,7 +53,7 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
 
     // ✅ FIX: dùng đúng subCourtId động, không hardcode
     final reviewsAsync =
-        ref.watch(userReviewsProvider(widget.subCourt.subCourtId));
+        ref.watch(courtReviewsProvider(widget.subCourt.subCourtId));
 
     final List<String> courtImages = [
       'assets/images/chitiet.png',
@@ -145,38 +147,84 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
 
             const SizedBox(height: 16),
 
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Đánh giá người dùng',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Đánh giá sân',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  // Dropdown Filter
+                  Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int?>(
+                        value: _selectedStarFilter,
+                        hint: const Text('Tất cả', style: TextStyle(fontSize: 13)),
+                        icon: const Icon(Icons.arrow_drop_down, size: 20),
+                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                        items: [
+                          const DropdownMenuItem(value: null, child: Text('Tất cả')),
+                          const DropdownMenuItem(value: 5, child: Text('5 Sao')),
+                          const DropdownMenuItem(value: 4, child: Text('4 Sao')),
+                          const DropdownMenuItem(value: 3, child: Text('3 Sao')),
+                          const DropdownMenuItem(value: 2, child: Text('2 Sao')),
+                          const DropdownMenuItem(value: 1, child: Text('1 Sao')),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedStarFilter = val;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
+            const SizedBox(height: 12),
 
             // ================= FIX REVIEW =================
-            reviewsAsync.when(
-              data: (reviews) {
-                if (reviews.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text("Chưa có đánh giá nào."),
-                  );
-                }
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: reviewsAsync.when(
+                data: (reviews) {
+                  // Lọc reviews theo số sao
+                  final filteredReviews = _selectedStarFilter == null
+                      ? reviews
+                      : reviews.where((r) => r.ratingScore == _selectedStarFilter).toList();
 
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: reviews.length,
-                  itemBuilder: (context, index) {
-                    final review = reviews[index];
-                    return _ReviewTile(review: review);
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text("Lỗi tải đánh giá: $e"),
+                  if (filteredReviews.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(child: Text("Không có đánh giá nào phù hợp.", style: TextStyle(color: Colors.grey))),
+                    );
+                  }
+
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    itemCount: filteredReviews.length,
+                    itemBuilder: (context, index) {
+                      final review = filteredReviews[index];
+                      return ReviewTile(review: review);
+                    },
+                  );
+                },
+                loading: () => const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text("Lỗi tải đánh giá: $e"),
+                ),
               ),
             ),
 
@@ -284,37 +332,4 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
   }
 }
 
-// ================= FIX REVIEW TILE (KHÔNG LƯỢC CODE) =================
-class _ReviewTile extends StatelessWidget {
-  final dynamic review;
 
-  const _ReviewTile({required this.review});
-
-  @override
-  Widget build(BuildContext context) {
-    final int rating = (review.ratingScore ?? 0);
-
-    return ListTile(
-      leading: const CircleAvatar(
-        child: Icon(Icons.person),
-      ),
-      title: Text(review.fromUserId ?? "Người dùng"),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: List.generate(5, (index) {
-              return Icon(
-                index < rating ? Icons.star : Icons.star_border,
-                color: Colors.amber,
-                size: 16,
-              );
-            }),
-          ),
-          const SizedBox(height: 4),
-          Text(review.comment ?? ""),
-        ],
-      ),
-    );
-  }
-}

@@ -1,26 +1,87 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/constants/app_colors.dart';
 import './member_list_dialog.dart';
+import '../../review/widgets/review_court_dialog.dart';
+import '../../review/widgets/review_member_dialog.dart';
 
-class ActivityCard extends StatelessWidget {
+class ActivityCard extends StatefulWidget {
   final Map<String, dynamic> data;
   final String category;
 
   const ActivityCard({super.key, required this.data, required this.category});
 
   @override
+  State<ActivityCard> createState() => _ActivityCardState();
+}
+
+class _ActivityCardState extends State<ActivityCard> {
+  bool _isCourtReviewed = false;
+  bool _isMemberReviewed = false;
+  bool _isLoadingStatus = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkReviewStatus();
+  }
+
+  Future<void> _checkReviewStatus() async {
+    if (widget.category != 'finished') return;
+    
+    final db = FirebaseFirestore.instance;
+    final bookingId = widget.data['id'] as String;
+    // Lấy uid trực tiếp vì ActivityCard không phải ConsumerStatefulWidget, 
+    // hoặc có thể mượn FirebaseAuth
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    try {
+      final courtReviewSnap = await db.collection('court_reviews')
+          .where('booking_id', isEqualTo: bookingId)
+          .where('from_user_id', isEqualTo: currentUserId)
+          .limit(1)
+          .get();
+
+      final memberReviewSnap = await db.collection('reviews')
+          .where('from_user_id', isEqualTo: currentUserId)
+          // Ta không lưu booking_id cho member review ở bài trước, cần check hoặc lưu thêm
+          // Wait, we need to add booking_id to member review!
+          .get();
+          
+      // Thực tế ta vừa thêm bookingId vào ReviewModel. 
+      // Cần query có booking_id
+      final memberReviewSnap2 = await db.collection('reviews')
+          .where('booking_id', isEqualTo: bookingId)
+          .where('from_user_id', isEqualTo: currentUserId)
+          .limit(1)
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _isCourtReviewed = courtReviewSnap.docs.isNotEmpty;
+          _isMemberReviewed = memberReviewSnap2.docs.isNotEmpty;
+          _isLoadingStatus = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingStatus = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final bookingId = data['id'] as String;
-    final courtName = data['court_name'] ?? 'Sân Cầu Lông ABC';
-    final subCourtName = data['sub_court_name'] ?? 'Sân số 2';
-    final bookingDate = (data['booking_date'] as Timestamp).toDate();
-    final startTime = data['start_time'] as String? ?? '18:00';
-    final endTime = data['end_time'] as String? ?? '20:00';
-    final price = data['total_price'] ?? 150000;
-    final paymentMethod = data['payment_method'] ?? 'MoMo';
-    final hostPhone = data['host_phone'] ?? '0123 456 789';
+    final bookingId = widget.data['id'] as String;
+    final courtName = widget.data['court_name'] ?? 'Sân Cầu Lông ABC';
+    final subCourtName = widget.data['sub_court_name'] ?? 'Sân số 2';
+    final bookingDate = (widget.data['booking_date'] as Timestamp).toDate();
+    final startTime = widget.data['start_time'] as String? ?? '18:00';
+    final endTime = widget.data['end_time'] as String? ?? '20:00';
+    final price = widget.data['total_price'] ?? 150000;
+    final paymentMethod = widget.data['payment_method'] ?? 'MoMo';
+    final hostPhone = widget.data['host_phone'] ?? '0123 456 789';
 
     final dateStr = _getFormattedDate(bookingDate);
     final now = DateTime.now();
@@ -47,7 +108,7 @@ class ActivityCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(child: _buildInfoRow(Icons.sports_tennis, '$subCourtName - $courtName')),
-              if (category == 'upcoming')
+              if (widget.category == 'upcoming')
                 GestureDetector(
                   onTap: () => _handleCancellation(context, hoursUntilMatch),
                   child: Container(
@@ -76,35 +137,66 @@ class ActivityCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _buildButton(
-                  category == 'finished' ? 'Đánh giá sân' : 'Xem chi tiết thành viên',
-                  category == 'finished' ? Icons.star_outline : Icons.people_outline,
-                  () {
-                    if (category == 'finished') {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Tính năng đánh giá sân đang được phát triển')),
+                  widget.category == 'finished' 
+                      ? (_isCourtReviewed ? 'Đã đánh giá sân' : 'Đánh giá sân')
+                      : 'Xem chi tiết thành viên',
+                  widget.category == 'finished' 
+                      ? (_isCourtReviewed ? Icons.check_circle : Icons.star_outline) 
+                      : Icons.people_outline,
+                  () async {
+                    if (widget.category == 'finished') {
+                      if (_isCourtReviewed) return; // Nếu đã đánh giá thì bỏ qua
+
+                      final courtId = widget.data['court_id'] as String?;
+                      final subCourtId = widget.data['sub_court_id'] as String? ?? '';
+                      
+                      final result = await showDialog(
+                        context: context,
+                        builder: (context) => ReviewCourtDialog(
+                          subCourtId: subCourtId,
+                          courtId: widget.data['court_id'] as String? ?? 'CT_001',
+                          subCourtName: '$subCourtName - $courtName',
+                          bookingId: bookingId,
+                        ),
                       );
+
+                      if (result == true) {
+                        setState(() => _isCourtReviewed = true);
+                      }
                     } else {
                       _showMembers(context, bookingId);
                     }
                   },
+                  isCompleted: widget.category == 'finished' && _isCourtReviewed,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildButton(
-                  category == 'finished' ? 'Đánh giá thành viên' : 'Nhắn tin nhóm',
-                  category == 'finished' ? Icons.rate_review_outlined : Icons.chat_bubble_outline,
-                  () {
-                    if (category == 'finished') {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Tính năng đánh giá thành viên đang được phát triển')),
+                  widget.category == 'finished' 
+                      ? (_isMemberReviewed ? 'Đã đánh giá thành viên' : 'Đánh giá thành viên') 
+                      : 'Nhắn tin nhóm',
+                  widget.category == 'finished' 
+                      ? (_isMemberReviewed ? Icons.check_circle : Icons.rate_review_outlined) 
+                      : Icons.chat_bubble_outline,
+                  () async {
+                    if (widget.category == 'finished') {
+                      // Không block return ở đây, vẫn cho phép ấn vào để đánh giá người khác
+                      final result = await showDialog(
+                        context: context,
+                        builder: (context) => ReviewMemberDialog(bookingId: bookingId),
                       );
+
+                      if (result == true) {
+                        setState(() => _isMemberReviewed = true);
+                      }
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Tính năng nhắn tin nhóm đang được phát triển')),
                       );
                     }
                   },
+                  isCompleted: widget.category == 'finished' && _isMemberReviewed,
                 ),
               ),
             ],
@@ -204,29 +296,34 @@ class ActivityCard extends StatelessWidget {
     );
   }
 
-  Widget _buildButton(String label, IconData icon, VoidCallback onTap) {
+  Widget _buildButton(String label, IconData icon, VoidCallback onTap, {bool isCompleted = false}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFF4A6136)),
+          color: isCompleted ? Colors.grey.shade200 : Colors.white,
+          border: Border.all(color: isCompleted ? Colors.grey.shade400 : const Color(0xFF4A6136)),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF4A6136),
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: isCompleted ? Colors.grey.shade700 : const Color(0xFF4A6136),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              textAlign: TextAlign.center,
             ),
             const SizedBox(width: 4),
-            Icon(icon, size: 14, color: const Color(0xFF4A6136)),
+            Icon(icon, size: 14, color: isCompleted ? Colors.grey.shade700 : const Color(0xFF4A6136)),
           ],
         ),
       ),
