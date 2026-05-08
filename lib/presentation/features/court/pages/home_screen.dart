@@ -1,3 +1,4 @@
+import 'package:badminton_app/presentation/features/profile/pages/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,8 +14,6 @@ import '../../../common_widgets/main_header.dart';
 import '../../../common_widgets/main_footer.dart';
 import '../../../features/community/pages/community_screen.dart';
 import '../../activity/pages/activity_screen.dart';
-
-
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -37,18 +36,9 @@ class HomeScreen extends ConsumerWidget {
           data: (subCourts) => CustomScrollView(
             slivers: [
               /// HEADER
-              SliverToBoxAdapter(
-                child: userAsync.when(
-                  data: (data) =>
-                      MainHeader(
-  userName: data?['full_name'] ?? 'Người dùng',
-  avatarBase64: data?['avatar_base64'],
+              const SliverToBoxAdapter(
+  child: MainHeader(),
 ),
-                  loading: () => const MainHeader(userName: '...'),
-                  error: (_, __) =>
-                      const MainHeader(userName: 'Người dùng'),
-                ),
-              ),
 
               /// BANNER
               SliverToBoxAdapter(child: _buildMainBannerSlider()),
@@ -134,25 +124,37 @@ class HomeScreen extends ConsumerWidget {
       ),
 
       bottomNavigationBar: MainFooter(
-        currentIndex: 0,
-        onTap: (index) {
-          if (index == 1) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const CommunityScreen(),
-              ),
-            );
-          } else if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const ActivityScreen(),
-              ),
-            );
-          }
-        },
-      ),
+  currentIndex: 0,
+  onTap: (index) {
+
+    if (index == 1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const CommunityScreen(),
+        ),
+      );
+    }
+
+    else if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const ActivityScreen(),
+        ),
+      );
+    }
+
+    else if (index == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const ProfileScreen(),
+        ),
+      );
+    }
+  },
+),
 
       floatingActionButton: FloatingActionButton(
         onPressed: () {},

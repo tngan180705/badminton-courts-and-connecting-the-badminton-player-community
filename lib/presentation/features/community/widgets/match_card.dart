@@ -3,7 +3,9 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../data/models/match_post_view_model.dart';
 import 'dart:convert';
-class MatchCard extends StatelessWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/providers/user_stream_provider.dart';
+class MatchCard extends ConsumerWidget {
   final MatchPostViewModel match;
   final bool isMyPost;
   final VoidCallback? onJoinPressed;
@@ -18,7 +20,24 @@ class MatchCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    
+    final userAsync =
+    ref.watch(userByFirebaseUidProvider(match.hostId));
+
+    final userData = userAsync.asData?.value;
+
+    final hostName =
+        userData?['full_name'] ??
+        'Người dùng';
+
+    final hostAvatar =
+        userData?['avatar_base64'] ??
+    '';
+
+    final reliability =
+        (userData?['reliability_score'] ?? 100)
+            .toDouble();
     final now = DateTime.now();
     final isToday = match.bookingDate.day == now.day &&
         match.bookingDate.month == now.month &&
@@ -48,32 +67,25 @@ class MatchCard extends StatelessWidget {
             children: [
               CircleAvatar(
   radius: 22,
-  backgroundColor: AppColors.secondary.withOpacity(0.3),
+  backgroundColor:
+      AppColors.secondary.withOpacity(0.3),
 
-  backgroundImage:
-      match.hostAvatarBase64 != null &&
-              match.hostAvatarBase64!.isNotEmpty
-          ? MemoryImage(
-              base64Decode(
-                match.hostAvatarBase64!,
-              ),
-            )
-          : null,
+  backgroundImage: hostAvatar.isNotEmpty
+      ? MemoryImage(base64Decode(hostAvatar))
+      : null,
 
-  child:
-      match.hostAvatarBase64 == null ||
-              match.hostAvatarBase64!.isEmpty
-          ? const Icon(
-              Icons.person,
-              color: AppColors.secondary,
-              size: 24,
-            )
-          : null,
+  child: hostAvatar.isEmpty
+      ? const Icon(
+          Icons.person,
+          color: AppColors.secondary,
+          size: 24,
+        )
+      : null,
 ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  match.hostName,
+                  hostName,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 17,
@@ -92,7 +104,7 @@ class MatchCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      (match.hostReliabilityScore / 100 * 5)
+                      (reliability / 100 * 5)
                           .toStringAsFixed(1), // 👈 tính từ reliability_score
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 13),

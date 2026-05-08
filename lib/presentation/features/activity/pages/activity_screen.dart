@@ -1,3 +1,4 @@
+import 'package:badminton_app/presentation/features/profile/pages/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -10,14 +11,14 @@ import '../../auth/providers/user_provider.dart';
 import '../../community/pages/community_screen.dart';
 import '../../court/pages/home_screen.dart';
 import '../widgets/activity_card.dart';
-
+import '../../profile/pages/profile_screen.dart';
 final userActivitiesProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value([]);
 
   return FirebaseFirestore.instance
       .collection('bookings')
-      .where('user_id', isEqualTo: user.uid)
+      .where('player_id', isEqualTo: user.uid)
       .snapshots()
       .asyncMap((snapshot) async {
     final activities = <Map<String, dynamic>>[];
@@ -87,14 +88,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
 
     return Scaffold(
       backgroundColor: const Color(0xFFE5E5CA), // Match the background in image
-      appBar: userAsync.when(
-        data: (data) => MainHeader(
-          userName: data?['full_name'] ?? 'Người dùng',
-          avatarBase64: data?['avatar_base64'],
-        ),
-        loading: () => const MainHeader(userName: '...'),
-        error: (_, __) => const MainHeader(userName: 'Người dùng'),
-      ),
+      appBar: const MainHeader(),
       body: SafeArea(
         child: Column(
           children: [
@@ -190,21 +184,32 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
       bottomNavigationBar: MainFooter(
         currentIndex: 2,
         onTap: (index) {
+
           if (index == 0) {
-            Navigator.pushAndRemoveUntil(
+            Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => HomeScreen()),
-              (route) => false,
+              MaterialPageRoute(
+                builder: (_) => const HomeScreen(),
+              ),
             );
-          } else if (index == 1) {
-            Navigator.push(
+          }
+
+          else if (index == 1) {
+            Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                 builder: (_) => const CommunityScreen(),
               ),
             );
-          } else if (index == 3) {
-            // Handle Hồ sơ
+          }
+
+          else if (index == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ProfileScreen(),
+              ),
+            );
           }
         },
       ),

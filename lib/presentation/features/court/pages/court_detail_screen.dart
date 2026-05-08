@@ -71,10 +71,10 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFE5E5CA),
-      appBar: MainHeader(
-        userName: userName,
-        avatarBase64: avatarBase64,
-      ),
+
+      appBar: const MainHeader(),
+
+
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
