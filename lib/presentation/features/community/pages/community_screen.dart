@@ -12,6 +12,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../data/models/match_post_view_model.dart';
 import 'match_join_handler.dart';
 import 'community_tab_bar.dart';
+import '../../activity/pages/activity_screen.dart';
+import '../../court/pages/home_screen.dart';
 
 class CommunityScreen extends ConsumerWidget {
   const CommunityScreen({super.key});
@@ -80,7 +82,20 @@ class CommunityScreen extends ConsumerWidget {
       bottomNavigationBar: MainFooter(
         currentIndex: 1,
         onTap: (index) {
-          if (index == 0) Navigator.pop(context);
+          if (index == 0) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => HomeScreen()),
+              (route) => false,
+            );
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ActivityScreen(),
+              ),
+            );
+          }
         },
       ),
       floatingActionButton: FloatingActionButton(
