@@ -6,8 +6,9 @@ import './member_list_dialog.dart';
 
 class ActivityCard extends StatelessWidget {
   final Map<String, dynamic> data;
+  final String category;
 
-  const ActivityCard({super.key, required this.data});
+  const ActivityCard({super.key, required this.data, required this.category});
 
   @override
   Widget build(BuildContext context) {
@@ -19,8 +20,11 @@ class ActivityCard extends StatelessWidget {
     final endTime = data['end_time'] as String? ?? '20:00';
     final price = data['total_price'] ?? 150000;
     final paymentMethod = data['payment_method'] ?? 'MoMo';
+    final hostPhone = data['host_phone'] ?? '0123 456 789';
 
     final dateStr = _getFormattedDate(bookingDate);
+    final now = DateTime.now();
+    final hoursUntilMatch = bookingDate.difference(now).inHours;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -39,9 +43,32 @@ class ActivityCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildInfoRow(Icons.sports_tennis, '$subCourtName - $courtName'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(child: _buildInfoRow(Icons.sports_tennis, '$subCourtName - $courtName')),
+              if (category == 'upcoming')
+                GestureDetector(
+                  onTap: () => _handleCancellation(context, hoursUntilMatch),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.red),
+                    ),
+                    child: const Text(
+                      'Hủy',
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 12),
           _buildInfoRow(Icons.access_time, '$dateStr, $startTime - $endTime'),
+          const SizedBox(height: 12),
+          _buildInfoRow(Icons.phone, 'SĐT: $hostPhone'),
           const SizedBox(height: 12),
           _buildInfoRow(Icons.attach_money, '${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(price)} - Đã thanh toán $paymentMethod'),
           const SizedBox(height: 20),
@@ -49,27 +76,106 @@ class ActivityCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _buildButton(
-                  'Xem chi tiết thành viên',
-                  Icons.people_outline,
+                  category == 'finished' ? 'Đánh giá sân' : 'Xem chi tiết thành viên',
+                  category == 'finished' ? Icons.star_outline : Icons.people_outline,
                   () {
-                    _showMembers(context, bookingId);
+                    if (category == 'finished') {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Tính năng đánh giá sân đang được phát triển')),
+                      );
+                    } else {
+                      _showMembers(context, bookingId);
+                    }
                   },
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildButton(
-                  'Nhắn tin nhóm',
-                  Icons.chat_bubble_outline,
+                  category == 'finished' ? 'Đánh giá thành viên' : 'Nhắn tin nhóm',
+                  category == 'finished' ? Icons.rate_review_outlined : Icons.chat_bubble_outline,
                   () {
-                    // Placeholder for chat
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Tính năng nhắn tin nhóm đang được phát triển')),
-                    );
+                    if (category == 'finished') {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Tính năng đánh giá thành viên đang được phát triển')),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Tính năng nhắn tin nhóm đang được phát triển')),
+                      );
+                    }
                   },
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleCancellation(BuildContext context, int hoursUntilMatch) {
+    if (hoursUntilMatch > 24) {
+      _showCancellationForm(context);
+    } else {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Thông báo'),
+          content: const Text('Hiện tại trận đấu diễn ra trong vòng 24h. Vui lòng liên hệ số 0566697796 để trao đổi chi tiết.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Đã hiểu'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _showCancellationForm(BuildContext context) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Yêu cầu hủy trận'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Vui lòng nhập lý do hủy trận:'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                hintText: 'Nhập lý do...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Thoát'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (reasonController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Vui lòng nhập lý do')),
+                );
+                return;
+              }
+              // Here you would typically send the request to Firestore
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Yêu cầu hủy đã được gửi thành công')),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4A6136)),
+            child: const Text('Gửi yêu cầu', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

@@ -210,7 +210,7 @@ class MemberListDialog extends StatelessWidget {
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
-            _buildDetailItem(Icons.phone, 'Số điện thoại', user['phone_number'] ?? 'Chưa cập nhật'),
+            _buildDetailItem(Icons.phone, 'Số điện thoại', user['phone'] ?? 'Chưa cập nhật'),
             _buildDetailItem(Icons.email, 'Email', user['email'] ?? 'Chưa cập nhật'),
             const SizedBox(height: 20),
             SizedBox(

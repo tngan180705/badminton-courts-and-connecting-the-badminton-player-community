@@ -102,4 +102,12 @@ class UserRepository {
 
     return UserModel.fromFirestore(doc.data()!, doc.id);
   }
+
+  /// Update User Info
+  Future<void> updateUser({
+    required String userId,
+    required Map<String, dynamic> data,
+  }) async {
+    await _firestore.collection('users').doc(userId).update(data);
+  }
 }

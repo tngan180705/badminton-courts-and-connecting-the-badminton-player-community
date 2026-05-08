@@ -5,7 +5,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../features/auth/pages/login_screen.dart';
 
-class MainHeader extends StatelessWidget
+import '../features/auth/providers/user_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+class MainHeader extends ConsumerWidget
     implements PreferredSizeWidget {
 
   final String userName;
@@ -18,7 +21,7 @@ class MainHeader extends StatelessWidget
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       color: const Color(0xFFE5E5CA),
       padding: const EdgeInsets.only(
@@ -77,6 +80,7 @@ class MainHeader extends StatelessWidget
             icon: const Icon(Icons.logout_rounded),
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
+              ref.invalidate(userDataProvider);
 
               if (context.mounted) {
                 Navigator.of(context).pushAndRemoveUntil(

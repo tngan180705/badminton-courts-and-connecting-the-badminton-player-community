@@ -10,50 +10,129 @@ import '../../auth/providers/user_provider.dart';
 import '../../community/pages/community_screen.dart';
 import '../../court/pages/home_screen.dart';
 import '../widgets/activity_card.dart';
+import '../../profile/pages/profile_screen.dart';
+import '../../auth/providers/auth_state_provider.dart';
 
-final userActivitiesProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
+/// Helper to fetch details for a list of bookings
+Future<List<Map<String, dynamic>>> _fetchDetails(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) async {
+  final activities = <Map<String, dynamic>>[];
+  final db = FirebaseFirestore.instance;
+
+  for (var doc in docs) {
+    final data = doc.data();
+    final subCourtId = data['sub_court_id'] as String;
+
+    // Fetch sub-court and court info
+    final subCourtDoc = await db.collection('sub_courts').doc(subCourtId).get();
+
+    if (subCourtDoc.exists) {
+      final subCourtData = subCourtDoc.data()!;
+      final courtId = subCourtData['court_id'] as String;
+
+      final courtDoc = await db.collection('courts').doc(courtId).get();
+
+      if (courtDoc.exists) {
+        final courtData = courtDoc.data()!;
+        data['sub_court_name'] = subCourtData['name'];
+        data['court_name'] = courtData['name'];
+      }
+    }
+
+    // Fetch host phone number
+    final hostId = data['player_id'] as String;
+    final hostDoc = await db.collection('users').where('firebase_uid', isEqualTo: hostId).limit(1).get();
+    if (hostDoc.docs.isNotEmpty) {
+      data['host_phone'] = hostDoc.docs.first.data()['phone'] ?? '';
+    }
+
+    data['id'] = doc.id;
+    activities.add(data);
+  }
+  return activities;
+}
+
+/// Stream for bookings where user is the player
+final directBookingsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  final user = ref.watch(authStateChangesProvider).value;
   if (user == null) return Stream.value([]);
 
   return FirebaseFirestore.instance
       .collection('bookings')
+      .where('player_id', isEqualTo: user.uid)
+      .snapshots()
+      .asyncMap((snap) => _fetchDetails(snap.docs));
+});
+
+/// Stream for bookings where user joined as a member
+final joinedBookingsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  final user = ref.watch(authStateChangesProvider).value;
+  if (user == null) return Stream.value([]);
+
+  final db = FirebaseFirestore.instance;
+
+  return db
+      .collection('match_members')
       .where('user_id', isEqualTo: user.uid)
       .snapshots()
-      .asyncMap((snapshot) async {
+      .asyncMap((snap) async {
     final activities = <Map<String, dynamic>>[];
-    
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final subCourtId = data['sub_court_id'] as String;
+    for (var memberDoc in snap.docs) {
+      final matchPostId = memberDoc['match_post_id'] as String;
+      final postDoc = await db.collection('match_posts').doc(matchPostId).get();
       
-      // Fetch sub-court and court info
-      final subCourtDoc = await FirebaseFirestore.instance
-          .collection('sub_courts')
-          .doc(subCourtId)
-          .get();
-      
-      if (subCourtDoc.exists) {
-        final subCourtData = subCourtDoc.data()!;
-        final courtId = subCourtData['court_id'] as String;
+      if (postDoc.exists) {
+        final bookingId = postDoc['booking_id'] as String;
+        final bookingDoc = await db.collection('bookings').doc(bookingId).get();
         
-        final courtDoc = await FirebaseFirestore.instance
-            .collection('courts')
-            .doc(courtId)
-            .get();
-        
-        if (courtDoc.exists) {
-          final courtData = courtDoc.data()!;
-          data['sub_court_name'] = subCourtData['name'];
-          data['court_name'] = courtData['name'];
+        if (bookingDoc.exists) {
+          final data = bookingDoc.data()!;
+          final subCourtId = data['sub_court_id'] as String;
+
+          final subCourtDoc = await db.collection('sub_courts').doc(subCourtId).get();
+          if (subCourtDoc.exists) {
+            final subCourtData = subCourtDoc.data()!;
+            final courtId = subCourtData['court_id'] as String;
+            final courtDoc = await db.collection('courts').doc(courtId).get();
+            if (courtDoc.exists) {
+              final courtData = courtDoc.data()!;
+              data['sub_court_name'] = subCourtData['name'];
+              data['court_name'] = courtData['name'];
+            }
+          }
+          // Fetch host phone number
+          final hostId = data['player_id'] as String;
+          final hostDocSnap = await db.collection('users').where('firebase_uid', isEqualTo: hostId).limit(1).get();
+          if (hostDocSnap.docs.isNotEmpty) {
+            data['host_phone'] = hostDocSnap.docs.first.data()['phone'] ?? '';
+          }
+
+          data['id'] = bookingDoc.id;
+          activities.add(data);
         }
       }
-      
-      data['id'] = doc.id;
-      activities.add(data);
     }
-    
     return activities;
   });
+});
+
+/// Combined provider
+final userActivitiesProvider = Provider<AsyncValue<List<Map<String, dynamic>>>>((ref) {
+  final direct = ref.watch(directBookingsProvider);
+  final joined = ref.watch(joinedBookingsProvider);
+
+  if (direct is AsyncError) return direct;
+  if (joined is AsyncError) return joined;
+  if (direct is AsyncLoading || joined is AsyncLoading) return const AsyncLoading();
+
+  final all = [...direct.value!, ...joined.value!];
+  // Sort by date descending
+  all.sort((a, b) => (b['booking_date'] as Timestamp).compareTo(a['booking_date'] as Timestamp));
+  
+  // Remove duplicates (if any)
+  final seenIds = <String>{};
+  final unique = all.where((a) => seenIds.add(a['id'] as String)).toList();
+  
+  return AsyncValue.data(unique);
 });
 
 class ActivityScreen extends ConsumerStatefulWidget {
@@ -83,10 +162,8 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
     final userAsync = ref.watch(userDataProvider);
     final activitiesAsync = ref.watch(userActivitiesProvider);
     
-    final nowStr = DateFormat('HH:mm - EEEE, dd/MM/yyyy', 'vi_VN').format(DateTime.now());
-
     return Scaffold(
-      backgroundColor: const Color(0xFFE5E5CA), // Match the background in image
+      backgroundColor: const Color(0xFFE5E5CA),
       appBar: userAsync.when(
         data: (data) => MainHeader(
           userName: data?['full_name'] ?? 'Người dùng',
@@ -98,50 +175,34 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
       body: SafeArea(
         child: Column(
           children: [
-            /// UPDATE TIME
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  const Icon(Icons.access_time, size: 18, color: Colors.black54),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Cập nhật lúc: $nowStr',
-                    style: const TextStyle(fontSize: 12, color: Colors.black54),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             const Text(
               'HOẠT ĐỘNG',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF4A6136), // Darker green for title
+                color: Color(0xFF4A6136),
               ),
             ),
             const SizedBox(height: 16),
 
-            /// TABS
+            /// TAB BAR
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Container(
-                height: 40,
+                height: 45,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(25),
                 ),
                 child: TabBar(
                   controller: _tabController,
                   indicator: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(25),
                     color: const Color(0xFF4A6136),
                   ),
                   labelColor: Colors.white,
-                  unselectedLabelColor: const Color(0xFF4A6136),
-                  dividerColor: Colors.transparent,
-                  indicatorSize: TabBarIndicatorSize.tab,
+                  unselectedLabelColor: Colors.grey,
                   tabs: const [
                     Tab(text: 'Sắp tới'),
                     Tab(text: 'Kết thúc'),
@@ -157,16 +218,34 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
             Expanded(
               child: activitiesAsync.when(
                 data: (activities) {
+                  final now = DateTime.now();
+
                   final upcoming = activities.where((a) {
                     final date = (a['booking_date'] as Timestamp).toDate();
                     final status = a['status'] as String;
-                    return status == 'confirmed' && date.isAfter(DateTime.now().subtract(const Duration(days: 1)));
+                    final endTime = a['end_time'] as String? ?? '00:00';
+                    
+                    try {
+                      final endParts = endTime.split(':');
+                      final endDateTime = DateTime(date.year, date.month, date.day, int.parse(endParts[0]), int.parse(endParts[1]));
+                      return status == 'confirmed' && endDateTime.isAfter(now);
+                    } catch (e) {
+                      return status == 'confirmed' && date.isAfter(now.subtract(const Duration(days: 1)));
+                    }
                   }).toList();
 
                   final finished = activities.where((a) {
                     final date = (a['booking_date'] as Timestamp).toDate();
                     final status = a['status'] as String;
-                    return status == 'confirmed' && date.isBefore(DateTime.now().subtract(const Duration(days: 1)));
+                    final endTime = a['end_time'] as String? ?? '00:00';
+
+                    try {
+                      final endParts = endTime.split(':');
+                      final endDateTime = DateTime(date.year, date.month, date.day, int.parse(endParts[0]), int.parse(endParts[1]));
+                      return status == 'confirmed' && endDateTime.isBefore(now);
+                    } catch (e) {
+                      return status == 'confirmed' && date.isBefore(now.subtract(const Duration(days: 1)));
+                    }
                   }).toList();
 
                   final cancelled = activities.where((a) => a['status'] == 'cancelled').toList();
@@ -174,9 +253,9 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
                   return TabBarView(
                     controller: _tabController,
                     children: [
-                      _buildActivityList(upcoming),
-                      _buildActivityList(finished),
-                      _buildActivityList(cancelled),
+                      _buildActivityList(upcoming, 'upcoming'),
+                      _buildActivityList(finished, 'finished'),
+                      _buildActivityList(cancelled, 'cancelled'),
                     ],
                   );
                 },
@@ -204,7 +283,12 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
               ),
             );
           } else if (index == 3) {
-            // Handle Hồ sơ
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ProfileScreen(),
+              ),
+            );
           }
         },
       ),
@@ -217,15 +301,18 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
     );
   }
 
-  Widget _buildActivityList(List<Map<String, dynamic>> list) {
+  Widget _buildActivityList(List<Map<String, dynamic>> list, String category) {
     if (list.isEmpty) {
       return const Center(child: Text('Không có hoạt động nào'));
     }
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.only(bottom: 100),
       itemCount: list.length,
       itemBuilder: (context, index) {
-        return ActivityCard(data: list[index]);
+        return ActivityCard(
+          data: list[index],
+          category: category,
+        );
       },
     );
   }

@@ -14,6 +14,7 @@ import 'match_join_handler.dart';
 import 'community_tab_bar.dart';
 import '../../activity/pages/activity_screen.dart';
 import '../../court/pages/home_screen.dart';
+import '../../profile/pages/profile_screen.dart';
 
 class CommunityScreen extends ConsumerWidget {
   const CommunityScreen({super.key});
@@ -95,6 +96,13 @@ class CommunityScreen extends ConsumerWidget {
                 builder: (_) => const ActivityScreen(),
               ),
             );
+          } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ProfileScreen(),
+              ),
+            );
           }
         },
       ),
@@ -162,17 +170,19 @@ class CommunityScreen extends ConsumerWidget {
                 itemCount: posts.length,
                 itemBuilder: (context, index) {
                   final match = posts[index];
-                  final isMyPost = match.hostId == currentUserId ||
-                      match.memberIds.contains(currentUserId);
+                  // ✅ Xác định nếu người dùng là chủ sân hoặc thành viên
+                  final isMyMatch = match.hostId == currentUserId ||
+                      match.memberIds.contains(currentUserId) ||
+                      currentTab == 1; // Trong tab "Trận của tôi" thì chắc chắn là của tôi
 
                   return MatchCard(
                     match: match,
-                    isMyPost: isMyPost,
-                    onJoinPressed: !isMyPost
+                    isMyPost: isMyMatch,
+                    onJoinPressed: !isMyMatch
                         ? () => MatchJoinHandler.handleJoinMatch(
                             context, ref, match)
                         : null,
-                    onDetailPressed: isMyPost
+                    onDetailPressed: isMyMatch
                         ? () => _showMatchDetail(context, match)
                         : null,
                   );

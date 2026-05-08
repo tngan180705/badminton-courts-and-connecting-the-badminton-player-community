@@ -13,6 +13,7 @@ import '../../../common_widgets/main_header.dart';
 import '../../../common_widgets/main_footer.dart';
 import '../../../features/community/pages/community_screen.dart';
 import '../../activity/pages/activity_screen.dart';
+import '../../profile/pages/profile_screen.dart';
 
 
 
@@ -148,6 +149,13 @@ class HomeScreen extends ConsumerWidget {
               context,
               MaterialPageRoute(
                 builder: (_) => const ActivityScreen(),
+              ),
+            );
+          } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ProfileScreen(),
               ),
             );
           }
