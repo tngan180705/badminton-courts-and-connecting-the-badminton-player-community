@@ -5,11 +5,13 @@ import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../data/models/sub_court_model.dart';
+import '../../auth/providers/user_provider.dart';
 import '../../community/providers/community_provider.dart';
+import '../../transaction/pages/viet_qr_payment_screen.dart';
+import '../../transaction/providers/transaction_provider.dart';
 import '../widgets/booking_info_box.dart';
 import '../widgets/booking_user_info_box.dart';
 import '../widgets/find_teammates_dialog.dart';
-import '../widgets/payment_dialog.dart';
 
 class BookingDetailScreen extends ConsumerStatefulWidget {
   final String courtName;
@@ -118,162 +120,191 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
     }
   }
 
-  Future<void> _bookAlone() async {
-    setState(() => _isLoading = true);
+  // ── Lấy tên người dùng từ provider ──────────────────────────────────────────
+  String _getUserFullName() {
+    final userData = ref.read(userDataProvider).value;
+    return userData?['full_name'] ?? 'Người dùng';
+  }
 
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser!;
-      final db = FirebaseFirestore.instance;
+  // ── Flow 1: Đánh riêng / Nhóm riêng → Thanh toán 100% ───────────────────────
+  void _bookAlone() {
+    final fullName = _getUserFullName();
+    final totalPrice = _calculatePrice();
 
-      // ✅ Generate booking ID
-      final bookingId = await _generateBookingId();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VietQRPaymentScreen(
+          paymentType: 'full_payment',
+          totalAmount: totalPrice,
+          payAmount: totalPrice,
+          courtName: widget.courtName,
+          subCourtName: widget.subCourt.subCourtName,
+          formattedDate: DateFormat('dd/MM/yyyy').format(widget.bookingDate),
+          startTime: _formatTime(widget.startTime),
+          endTime: _formatTime(widget.endTime),
+          fullName: fullName,
+          onPaymentConfirmed: _saveBookingAlone,
+        ),
+      ),
+    );
+  }
 
-      await db.collection('bookings').doc(bookingId).set({
-        'player_id': currentUser.uid,
-        'sub_court_id': widget.subCourt.subCourtId,
-        'booking_date': Timestamp.fromDate(widget.bookingDate),
-        'start_time': _formatTime(widget.startTime),
-        'end_time': _formatTime(widget.endTime),
-        'status': 'confirmed',
-        'total_price': _calculatePrice().toInt(),
-        'payment_method': 'wallet',
-        'check_in_status': false,
-        'created_at': Timestamp.now(),
-      });
+  Future<void> _saveBookingAlone() async {
+    final currentUser = FirebaseAuth.instance.currentUser!;
+    final db = FirebaseFirestore.instance;
+    final txRepo = ref.read(transactionRepositoryProvider);
 
-      // ✅ 2. Tạo match_post ảo (slots=0) để hiện trong "Trận của tôi"
-      final matchPostId = await _generateMatchPostId();
-      await db.collection('match_posts').doc(matchPostId).set({
-        'host_id': currentUser.uid,
-        'booking_id': bookingId,
-        'title': 'Đánh riêng',
-        'description': 'Lịch đặt sân riêng',
-        'slots_needed': 0,
-        'status': 'full',
-        'skill_level': 'Tất cả',
-        'created_at': Timestamp.now(),
-      });
+    final bookingId = await _generateBookingId();
+    final totalPrice = _calculatePrice();
 
-      print('✅ Booking and Match Post created: $bookingId, $matchPostId');
+    // 1. Tạo booking với status pending_confirmation
+    await db.collection('bookings').doc(bookingId).set({
+      'player_id': currentUser.uid,
+      'sub_court_id': widget.subCourt.subCourtId,
+      'booking_date': Timestamp.fromDate(widget.bookingDate),
+      'start_time': _formatTime(widget.startTime),
+      'end_time': _formatTime(widget.endTime),
+      'status': 'pending_confirmation',
+      'total_price': totalPrice.toInt(),
+      'payment_method': 'bank_transfer',
+      'check_in_status': false,
+      'created_at': Timestamp.now(),
+    });
 
-      if (mounted) {
-        // ✅ 3. Invalidate providers
-        ref.invalidate(communityPostsProvider);
-        ref.invalidate(myPostsProvider);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đặt sân thành công!'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      print('❌ Error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    // 2. Tạo match_post ảo
+    final matchPostId = await _generateMatchPostId();
+    await db.collection('match_posts').doc(matchPostId).set({
+      'host_id': currentUser.uid,
+      'booking_id': bookingId,
+      'title': 'Đánh riêng',
+      'description': 'Lịch đặt sân riêng',
+      'slots_needed': 0,
+      'status': 'full',
+      'skill_level': 'Tất cả',
+      'created_at': Timestamp.now(),
+    });
+
+    // 3. Tạo transaction record
+    final transferContent = buildTransferContent(
+      fullName: _getUserFullName(),
+      paymentType: 'full_payment',
+      subCourtName: widget.subCourt.subCourtName,
+      startTime: _formatTime(widget.startTime),
+      formattedDate: DateFormat('dd/MM/yyyy').format(widget.bookingDate),
+    );
+    await txRepo.createTransaction(
+      userId: currentUser.uid,
+      bookingId: bookingId,
+      amount: totalPrice,
+      type: 'payment',
+      paymentType: 'full_payment',
+      transferContent: transferContent,
+    );
+
+    print('✅ Booking alone created: $bookingId');
+
+    if (mounted) {
+      ref.invalidate(communityPostsProvider);
+      ref.invalidate(myPostsProvider);
     }
   }
 
+  // ── Flow 2: Tìm thêm người → Cọc 30% ────────────────────────────────────────
   void _findTeammates() {
     showDialog(
       context: context,
       builder: (context) => FindTeammatesDialog(
         onConfirm: (slots, skill) {
-          _createMatchPost(slots, skill);
+          _navigateToDepositPayment(slots, skill);
         },
       ),
     );
   }
 
-  Future<void> _createMatchPost(int slots, String skill) async {
-    final depositPrice = (_calculatePrice() * 0.3).toInt();
+  void _navigateToDepositPayment(int slots, String skill) {
+    final fullName = _getUserFullName();
+    final totalPrice = _calculatePrice();
+    final depositAmount = totalPrice * 0.3;
 
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (context) => PaymentDialog(
-        depositAmount: depositPrice,
-        onConfirm: () async {
-          Navigator.pop(context); // Đóng dialog
-          await _submitMatchPost(slots, skill); // Tạo booking + post
-        },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VietQRPaymentScreen(
+          paymentType: 'deposit',
+          totalAmount: totalPrice,
+          payAmount: depositAmount,
+          courtName: widget.courtName,
+          subCourtName: widget.subCourt.subCourtName,
+          formattedDate: DateFormat('dd/MM/yyyy').format(widget.bookingDate),
+          startTime: _formatTime(widget.startTime),
+          endTime: _formatTime(widget.endTime),
+          fullName: fullName,
+          onPaymentConfirmed: () => _saveMatchPost(slots, skill),
+        ),
       ),
     );
   }
 
-  Future<void> _submitMatchPost(int slots, String skill) async {
-    setState(() => _isLoading = true);
+  Future<void> _saveMatchPost(int slots, String skill) async {
+    final currentUser = FirebaseAuth.instance.currentUser!;
+    final db = FirebaseFirestore.instance;
+    final txRepo = ref.read(transactionRepositoryProvider);
+    final totalPrice = _calculatePrice();
+    final depositAmount = totalPrice * 0.3;
 
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser!;
-      final db = FirebaseFirestore.instance;
+    // 1. Tạo booking với status pending_confirmation
+    final bookingId = await _generateBookingId();
+    await db.collection('bookings').doc(bookingId).set({
+      'player_id': currentUser.uid,
+      'sub_court_id': widget.subCourt.subCourtId,
+      'booking_date': Timestamp.fromDate(widget.bookingDate),
+      'start_time': _formatTime(widget.startTime),
+      'end_time': _formatTime(widget.endTime),
+      'status': 'pending_confirmation',
+      'total_price': totalPrice.toInt(),
+      'deposit_paid': true,
+      'deposit_amount': depositAmount.toInt(),
+      'payment_method': 'bank_transfer',
+      'check_in_status': false,
+      'created_at': Timestamp.now(),
+    });
 
-      // ✅ 1. Generate booking ID
-      final bookingId = await _generateBookingId();
+    // 2. Tạo match_post
+    final matchPostId = await _generateMatchPostId();
+    await db.collection('match_posts').doc(matchPostId).set({
+      'host_id': currentUser.uid,
+      'booking_id': bookingId,
+      'title': 'Tìm $slots người chơi',
+      'description': 'Trình độ: $skill',
+      'slots_needed': slots,
+      'status': 'open',
+      'skill_level': skill,
+      'created_at': Timestamp.now(),
+    });
 
-      // ✅ 2. Tạo booking
-      await db.collection('bookings').doc(bookingId).set({
-        'player_id': currentUser.uid,
-        'sub_court_id': widget.subCourt.subCourtId,
-        'booking_date': Timestamp.fromDate(widget.bookingDate),
-        'start_time': _formatTime(widget.startTime),
-        'end_time': _formatTime(widget.endTime),
-        'status': 'confirmed',
-        'total_price': _calculatePrice().toInt(),
-        'deposit_paid': true,
-        'deposit_amount': (_calculatePrice() * 0.3).toInt(),
-        'payment_method': 'bank_transfer',
-        'check_in_status': false,
-        'created_at': Timestamp.now(),
-      });
+    // 3. Tạo transaction record
+    final transferContent = buildTransferContent(
+      fullName: _getUserFullName(),
+      paymentType: 'deposit',
+      subCourtName: widget.subCourt.subCourtName,
+      startTime: _formatTime(widget.startTime),
+      formattedDate: DateFormat('dd/MM/yyyy').format(widget.bookingDate),
+    );
+    await txRepo.createTransaction(
+      userId: currentUser.uid,
+      bookingId: bookingId,
+      amount: depositAmount,
+      type: 'deposit',
+      paymentType: 'deposit',
+      transferContent: transferContent,
+    );
 
-      // ✅ 3. Tạo match_post
-      final matchPostId = await _generateMatchPostId();
-      await db.collection('match_posts').doc(matchPostId).set({
-        'host_id': currentUser.uid,
-        'booking_id': bookingId, // Link tới booking
-        'title': 'Tìm $slots người chơi',
-        'description': 'Trình độ: $skill',
-        'slots_needed': slots,
-        'status': 'open',
-        'skill_level': skill,
-        'created_at': Timestamp.now(),
-      });
+    print('✅ Match post + deposit booking created: $bookingId, $matchPostId');
 
-      print('✅ Match post created: $matchPostId');
-
-      if (mounted) {
-        // ✅ 4. Invalidate providers to refresh UI immediately
-        ref.invalidate(communityPostsProvider);
-        ref.invalidate(myPostsProvider);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đăng bài ghép nhóm thành công!'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
-
-        // Capture navigator before popping to avoid unmounted context issues
-        final navigator = Navigator.of(context);
-        navigator.pop(); // Quay lại BookingScreen
-        navigator.pop(); // Quay lại CourtDetailScreen
-      }
-    } catch (e) {
-      print('❌ Error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    if (mounted) {
+      ref.invalidate(communityPostsProvider);
+      ref.invalidate(myPostsProvider);
     }
   }
 
