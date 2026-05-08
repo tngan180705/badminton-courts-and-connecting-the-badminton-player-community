@@ -1,3 +1,4 @@
+import 'package:badminton_app/presentation/features/auth/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../core/constants/app_colors.dart';
@@ -7,6 +8,7 @@ import '../providers/login_provider.dart';
 import '../pages/register_screen.dart';
 import '../pages/forgot_password_screen.dart';
 import '../../court/pages/home_screen.dart'; // Import trang Home của bạn
+import '../providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends ConsumerWidget {

@@ -24,7 +24,7 @@ Future<List<MatchPostViewModel>> _fetchAndJoinPosts(
   // Local caches to avoid redundant fetches in the same batch
   final subCourtCache = <String, DocumentSnapshot>{};
   final courtCache = <String, DocumentSnapshot>{};
-  final userCache = <String, QuerySnapshot>{};
+  final userCache = <String, DocumentSnapshot>{};
   final bookingCache = <String, DocumentSnapshot>{};
 
   final futures = docs.map((postDoc) async {
@@ -78,15 +78,15 @@ Future<List<MatchPostViewModel>> _fetchAndJoinPosts(
           : db.collection('sub_courts').doc(subCourtId).get();
           
       final userFuture = userCache.containsKey(post.hostId)
-          ? Future.value(userCache[post.hostId])
-          : db.collection('users').where('firebase_uid', isEqualTo: post.hostId).limit(1).get();
+    ? Future.value(userCache[post.hostId])
+    : db.collection('users').doc(post.hostId).get();
           
       final membersFuture = db.collection('match_members').where('match_post_id', isEqualTo: post.matchPostId).get();
 
       final results = await Future.wait([subCourtFuture, userFuture, membersFuture]);
 
       final subCourtSnap = results[0] as DocumentSnapshot;
-      final userSnap = results[1] as QuerySnapshot;
+      final userSnap = results[1] as DocumentSnapshot;
       final membersSnap = results[2] as QuerySnapshot;
 
       // Update caches
@@ -111,8 +111,9 @@ Future<List<MatchPostViewModel>> _fetchAndJoinPosts(
       String hostAvatar = '';
       double hostScore = 100.0;
 
-      if (userSnap.docs.isNotEmpty) {
-        final userData = userSnap.docs.first.data() as Map<String, dynamic>;
+      if (userSnap.exists && userSnap.data() != null) {
+        final userData =
+      userSnap.data() as Map<String, dynamic>;
         hostName = userData['full_name'] ?? 'Người dùng';
         hostAvatar = userData['avatar_base64'] ?? '';
         hostScore = (userData['reliability_score'] ?? 100.0).toDouble();

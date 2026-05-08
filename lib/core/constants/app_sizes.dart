@@ -26,4 +26,5 @@ class AppSizes {
   static const SizedBox hLarge = SizedBox(height: spaceLarge);
   static const SizedBox wSmall = SizedBox(width: spaceSmall);
   static const SizedBox wMedium = SizedBox(width: spaceMedium);
+  static const SizedBox hXL = SizedBox(height: spaceXL);
 }
