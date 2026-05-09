@@ -9,6 +9,7 @@ import '../providers/court_provider.dart';
 import '../widgets/court_card.dart';
 import '../pages/court_detail_screen.dart';
 import '../../auth/providers/user_provider.dart';
+import 'package:badminton_app/presentation/features/admin/pages/admin_shell.dart';
 import '../../../common_widgets/main_header.dart';
 import '../../../common_widgets/main_footer.dart';
 import '../../../features/community/pages/community_screen.dart';
@@ -162,14 +163,29 @@ class HomeScreen extends ConsumerWidget {
         },
       ),
 
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
+      floatingActionButton: userAsync.when(
+        data: (data) {
+          final role = data?['role'] ?? 'player';
+          if (role == 'admin') {
+            return FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminShell()),
+                );
+              },
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.dashboard, color: Colors.white),
+            );
+          }
+
+          return null;
+        },
+        loading: () => null,
+        error: (_, __) => null,
       ),
 
-      floatingActionButtonLocation:
-          FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 

@@ -21,42 +21,24 @@ class LoginScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // LẮNG NGHE TRẠNG THÁI LOGIN
-    ref.listen<AsyncValue<UserCredential?>>(loginStateProvider,
-        (previous, next) {
-      next.when(
-        data: (user) {
-          if (previous is AsyncLoading && user != null) {
-            Navigator.pop(context); // Đóng Loading Dialog
+    ref.listen(loginStateProvider, (prev, next) {
+  next.whenOrNull(
+    data: (user) {
+      if (user == null) return;
 
-            // THÊM DÒNG NÀY ĐỂ XÓA CACHE DỮ LIỆU CŨ CỦA USER TRƯỚC ĐÓ
-            ref.invalidate(userDataProvider);
-
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-              (route) => false,
-            );
-          }
-        },
-        error: (err, _) {
-          Navigator.pop(context); // Đóng Loading Dialog
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(err.toString()),
-                backgroundColor: AppColors.error),
-          );
-        },
-        loading: () {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            ),
-          );
-        },
+      if (user.role == 'admin') {
+        Navigator.pushReplacementNamed(context, '/admin');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    },
+    error: (err, _) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err.toString())),
       );
-    });
+    },
+  );
+});
 
     return Scaffold(
       backgroundColor: AppColors.background,

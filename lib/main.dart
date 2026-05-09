@@ -1,3 +1,5 @@
+import 'package:badminton_app/presentation/features/admin/widgets/role_gate.dart';
+import 'package:badminton_app/presentation/features/auth/providers/auth_user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -26,36 +28,30 @@ void main() async {
     ),
   );
 }
-
 class MyApp extends ConsumerWidget {
-  // Chuyển sang ConsumerWidget để dùng ref
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. Lắng nghe stream thay đổi trạng thái (đã tạo ở bước trước)
-    final authState = ref.watch(authStateChangesProvider);
+    final authState = ref.watch(firebaseAuthProvider);
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      // 2. Sử dụng .when để handle 3 trạng thái của một Stream
       home: authState.when(
-        data: (user) {
-          // Nếu user == null nghĩa là chưa đăng nhập hoặc đã logout
-          if (user == null) {
+        data: (firebaseUser) {
+          if (firebaseUser == null) {
             return LoginScreen();
           }
-          // Nếu có user, đẩy thẳng vào Home
-          return const HomeScreen();
+
+          // 👉 CHƯA CHECK ROLE ở đây
+          return RoleGate(uid: firebaseUser.uid);
         },
-        // Trong lúc app đang check Firebase (mất khoảng 1-2s đầu)
         loading: () => const Scaffold(
           body: Center(child: CircularProgressIndicator()),
         ),
-        // Nếu lỗi kết nối Firebase
-        error: (e, st) => Scaffold(
-          body: Center(child: Text("Lỗi khởi động: $e")),
+        error: (e, _) => Scaffold(
+          body: Center(child: Text("Lỗi: $e")),
         ),
       ),
     );
