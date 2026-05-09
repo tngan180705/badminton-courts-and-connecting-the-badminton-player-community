@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/court_model.dart';
 import '../models/sub_court_model.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final courtRepositoryProvider =
     Provider<CourtRepository>((ref) => CourtRepository());
@@ -9,29 +9,40 @@ final courtRepositoryProvider =
 class CourtRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Lấy danh sách sân con dựa trên ID của sân lớn
   Future<List<SubCourtModel>> getSubCourtsByCourtId(String courtId) async {
     try {
       final snapshot = await _firestore
           .collection('sub_courts')
           .where('court_id', isEqualTo: courtId)
           .get();
-
       return snapshot.docs
           .map((doc) => SubCourtModel.fromFirestore(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      // In lỗi ra để debug nếu có vấn đề về quyền truy cập Firestore
-      print('Error fetching sub-courts: $e');
+      print('❌ getSubCourtsByCourtId error: $e');
       return [];
     }
   }
+Future<int> getTotalSubCourts() async {  try {
+    // FIX: đếm sub courts thay vì courts
+    final snapshot = await _firestore.collection('sub_courts').get();
 
-  // Tiện tay tạo luôn hàm lấy sân lớn nếu sau này cần dùng
+    return snapshot.docs.length;
+  } catch (e) {
+    print('❌ getTotalCourts error: $e');
+    return 0;
+  }
+}
+
   Future<List<CourtModel>> getAllCourts() async {
-    final snapshot = await _firestore.collection('courts').get();
-    return snapshot.docs
-        .map((doc) => CourtModel.fromFirestore(doc.data(), doc.id))
-        .toList();
+    try {
+      final snapshot = await _firestore.collection('courts').get();
+      return snapshot.docs
+          .map((doc) => CourtModel.fromFirestore(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      print('❌ getAllCourts error: $e');
+      return [];
+    }
   }
 }

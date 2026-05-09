@@ -17,6 +17,27 @@ class TransactionRepository {
     return 'TX_${(maxNum + 1).toString().padLeft(3, '0')}';
   }
 
+  /// Tổng doanh thu = tất cả transaction (không lọc status)
+  /// vì hiện tại app tạo transaction với status 'pending' khi thanh toán
+  Future<double> getTotalRevenue() async {
+    try {
+      final snapshot =
+          await _firestore.collection('transactions').get();
+
+      double total = 0;
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        // amount có thể là int hoặc double → dùng num? để an toàn
+        final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+        total += amount;
+      }
+      return total;
+    } catch (e) {
+      print('❌ getTotalRevenue error: $e');
+      return 0.0;
+    }
+  }
+
   Future<String> createTransaction({
     required String userId,
     required String? bookingId,
@@ -37,7 +58,6 @@ class TransactionRepository {
       'transfer_content': transferContent,
       'created_at': Timestamp.now(),
     });
-    print('✅ Transaction created: $txId');
     return txId;
   }
 
@@ -48,7 +68,109 @@ class TransactionRepository {
         .orderBy('created_at', descending: true)
         .snapshots()
         .map((snap) => snap.docs
-            .map((doc) => TransactionModel.fromFirestore(doc.data(), doc.id))
+            .map((doc) =>
+                TransactionModel.fromFirestore(doc.data(), doc.id))
             .toList());
   }
+  Future<void> confirmTransaction({
+  required String transactionId,
+  required String? bookingId,
+}) async {
+  final batch = _firestore.batch();
+
+  // Update transaction
+  final txRef = _firestore
+      .collection('transactions')
+      .doc(transactionId);
+
+  batch.update(txRef, {
+    'status': 'confirmed',
+  });
+
+  // Update booking nếu có
+  if (bookingId != null && bookingId.isNotEmpty) {
+    final bookingRef =
+        _firestore.collection('bookings').doc(bookingId);
+
+    batch.update(bookingRef, {
+      'status': 'confirmed',
+    });
+  }
+
+  await batch.commit();
+}
+
+Future<void> rejectTransaction({
+  required String transactionId,
+  required String? bookingId,
+}) async {
+  final batch = _firestore.batch();
+
+  final txRef = _firestore
+      .collection('transactions')
+      .doc(transactionId);
+
+  batch.update(txRef, {
+    'status': 'rejected',
+  });
+
+  if (bookingId != null && bookingId.isNotEmpty) {
+    final bookingRef =
+        _firestore.collection('bookings').doc(bookingId);
+
+    batch.update(bookingRef, {
+      'status': 'cancelled',
+    });
+  }
+
+  await batch.commit();
+}
+
+Stream<List<TransactionModel>> getAllTransactions() {
+  return _firestore
+      .collection('transactions')
+      .orderBy('created_at', descending: true)
+      .snapshots()
+      .map(
+        (snapshot) => snapshot.docs
+            .map(
+              (doc) => TransactionModel.fromFirestore(
+                doc.data(),
+                doc.id,
+              ),
+            )
+            .toList(),
+      );
+}
+Future<List<TransactionModel>> getTransactionsByDateRange({
+  required DateTime start,
+  required DateTime end,
+}) async {
+  try {
+    final snapshot = await _firestore
+        .collection('transactions')
+        .where(
+          'created_at',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(start),
+        )
+        .where(
+          'created_at',
+          isLessThanOrEqualTo: Timestamp.fromDate(end),
+        )
+        .orderBy('created_at')
+        .get();
+
+    return snapshot.docs
+        .map(
+          (doc) => TransactionModel.fromFirestore(
+            doc.data(),
+            doc.id,
+          ),
+        )
+        .toList();
+  } catch (e) {
+    print('❌ getTransactionsByDateRange error: $e');
+    return [];
+  }
+}
 }
