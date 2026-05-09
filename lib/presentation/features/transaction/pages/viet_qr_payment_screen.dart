@@ -58,6 +58,7 @@ class VietQRPaymentScreen extends ConsumerStatefulWidget {
   final String endTime;
   final String fullName;
   final Future<void> Function() onPaymentConfirmed;
+  final int popCount; // Thêm tham số để kiểm soát số lần pop stack
 
   const VietQRPaymentScreen({
     super.key,
@@ -71,6 +72,7 @@ class VietQRPaymentScreen extends ConsumerStatefulWidget {
     required this.endTime,
     required this.fullName,
     required this.onPaymentConfirmed,
+    this.popCount = 2,
   });
 
   @override
@@ -202,10 +204,11 @@ class _VietQRPaymentScreenState extends ConsumerState<VietQRPaymentScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // Pop về màn hình gốc (BookingDetailScreen đã pop trước đó)
-                  Navigator.of(context)
-                    ..pop()
-                    ..pop();
+                  for (int i = 0; i < widget.popCount; i++) {
+                    if (Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop();
+                    }
+                  }
                 },
                 icon: const Icon(Icons.home_outlined),
                 label: const Text(

@@ -32,7 +32,7 @@ class TransactionRepository {
       'amount': amount,
       'type': type,
       'payment_type': paymentType,
-      'payment_method': 'Chuyển Khoản Ngân Hàng',
+      'payment_method': 'Chuyển khoản ngân hàng',
       'status': 'pending',
       'transfer_content': transferContent,
       'created_at': Timestamp.now(),

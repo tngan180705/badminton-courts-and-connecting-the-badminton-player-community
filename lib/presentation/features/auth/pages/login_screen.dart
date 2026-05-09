@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/utils/validators.dart';
-import '../../../../../core/constants/app_sizes.dart'; // Sử dụng AppSizes cho chuẩn
+import '../../../../../core/constants/app_sizes.dart';
 import '../providers/login_provider.dart';
 import '../pages/register_screen.dart';
 import '../pages/forgot_password_screen.dart';
-import '../../court/pages/home_screen.dart'; // Import trang Home của bạn
+import '../../court/pages/home_screen.dart';
 import '../providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../admin/pages/admin_main_screen.dart';
+
 class LoginScreen extends ConsumerWidget {
-  // Chuyển sang ConsumerWidget
   LoginScreen({super.key});
 
   final _formKey = GlobalKey<FormState>();
@@ -20,26 +22,61 @@ class LoginScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // LẮNG NGHE TRẠNG THÁI LOGIN
-    ref.listen<AsyncValue<UserCredential?>>(loginStateProvider,
-        (previous, next) {
+    ref.listen<AsyncValue<UserCredential?>>(loginStateProvider, (previous, next) {
       next.when(
-        data: (user) {
-          if (previous is AsyncLoading && user != null) {
-            Navigator.pop(context); // Đóng Loading Dialog
+        data: (credential) async {
+          if (previous is AsyncLoading && credential != null) {
+            if (context.mounted) Navigator.pop(context); // Đóng loading dialog
 
-            // THÊM DÒNG NÀY ĐỂ XÓA CACHE DỮ LIỆU CŨ CỦA USER TRƯỚC ĐÓ
             ref.invalidate(userDataProvider);
 
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-              (route) => false,
-            );
+            // Truy vấn Firestore để lấy role người dùng
+            try {
+              final db = FirebaseFirestore.instance;
+              final uid = credential.user!.uid;
+
+              final snapshot = await db
+                  .collection('users')
+                  .where('firebase_uid', isEqualTo: uid)
+                  .limit(1)
+                  .get();
+
+              String role = 'player'; // Mặc định là người chơi
+              if (snapshot.docs.isNotEmpty) {
+                final data = snapshot.docs.first.data();
+                role = (data['role'] ?? 'player').toString().toLowerCase();
+              }
+
+              if (!context.mounted) return;
+
+              // Điều hướng dựa trên role
+              if (role == 'admin') {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminMainScreen()),
+                  (route) => false,
+                );
+              } else {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  (route) => false,
+                );
+              }
+            } catch (e) {
+              // Nếu lỗi truy vấn, mặc định chuyển về HomeScreen
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  (route) => false,
+                );
+              }
+            }
           }
         },
         error: (err, _) {
-          Navigator.pop(context); // Đóng Loading Dialog
+          if (context.mounted) Navigator.pop(context); // Đóng loading dialog
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text(err.toString()),

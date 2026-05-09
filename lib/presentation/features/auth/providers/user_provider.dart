@@ -57,3 +57,24 @@ final userStatsProvider = StreamProvider<Map<String, int>>((ref) {
     return {'totalMatches': joinedCount + hostedSnap.size};
   });
 });
+
+/// Tính trung bình số sao từ đánh giá người chơi (collection 'reviews')
+/// Nếu chưa có đánh giá nào → mặc định 5.0 sao
+final userAvgStarsProvider = StreamProvider<double>((ref) {
+  final authState = ref.watch(authStateChangesProvider);
+  final user = authState.value;
+  if (user == null) return Stream.value(5.0);
+
+  return FirebaseFirestore.instance
+      .collection('reviews')
+      .where('to_user_id', isEqualTo: user.uid)
+      .snapshots()
+      .map((snap) {
+    if (snap.docs.isEmpty) return 5.0; // chưa có đánh giá → 5 sao mặc định
+    final total = snap.docs.fold<int>(
+      0,
+      (sum, doc) => sum + ((doc.data()['rating_score'] as num?)?.toInt() ?? 5),
+    );
+    return total / snap.docs.length; // 1.0 – 5.0 sao
+  });
+});
