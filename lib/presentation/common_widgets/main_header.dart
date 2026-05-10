@@ -81,12 +81,10 @@ class MainHeader extends ConsumerWidget
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               ref.invalidate(userDataProvider);
-
+              
               if (context.mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(
-                    builder: (context) => LoginScreen(),
-                  ),
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
                   (route) => false,
                 );
               }

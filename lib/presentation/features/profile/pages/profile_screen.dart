@@ -33,7 +33,12 @@ class ProfileScreen extends ConsumerWidget {
             final avatar = userData['avatar_base64'];
             final skill = userData['skill_level'] ?? 'Mới bắt đầu';
             final reliabilityScore = (userData['reliability_score'] ?? 100).toDouble();
-            final score = reliabilityScore / 100 * 5.0;
+            // Số sao: lấy từ đánh giá người chơi (trung bình), nếu chưa có → 5 sao
+            final starsAsync = ref.watch(userAvgStarsProvider);
+            final score = starsAsync.maybeWhen(
+              data: (stars) => stars,
+              orElse: () => reliabilityScore / 100 * 5.0,
+            );
             final attendance = reliabilityScore; 
             final wallet = (userData['wallet_balance'] ?? 0).toDouble();
 

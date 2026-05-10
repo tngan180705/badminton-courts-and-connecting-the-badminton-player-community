@@ -76,16 +76,43 @@ class _ActivityCardState extends State<ActivityCard> {
     final bookingId = widget.data['id'] as String;
     final courtName = widget.data['court_name'] ?? 'Sân Cầu Lông ABC';
     final subCourtName = widget.data['sub_court_name'] ?? 'Sân số 2';
-    final bookingDate = (widget.data['booking_date'] as Timestamp).toDate();
-    final startTime = widget.data['start_time'] as String? ?? '18:00';
-    final endTime = widget.data['end_time'] as String? ?? '20:00';
+    DateTime bookingDate;
+    final rawDate = widget.data['booking_date'];
+    if (rawDate is Timestamp) {
+      bookingDate = rawDate.toDate();
+    } else if (rawDate is String) {
+      // Handle DD/MM/YYYY or YYYY-MM-DD
+      if (rawDate.contains('/')) {
+        final parts = rawDate.split('/');
+        if (parts.length == 3) {
+          bookingDate = DateTime(
+            int.parse(parts[2]), // Year
+            int.parse(parts[1]), // Month
+            int.parse(parts[0]), // Day
+          );
+        } else {
+          bookingDate = DateTime.now();
+        }
+      } else {
+        bookingDate = DateTime.tryParse(rawDate) ?? DateTime.now();
+      }
+    } else {
+      bookingDate = DateTime.now();
+    }
+
+    final startTimeStr = widget.data['start_time'] as String? ?? '00:00';
+    final startTimeParts = startTimeStr.split(':');
+    final matchStartTime = DateTime(bookingDate.year, bookingDate.month, bookingDate.day, int.parse(startTimeParts[0]), int.parse(startTimeParts[1]));
+    
+    final now = DateTime.now();
+    final hoursUntilMatch = matchStartTime.difference(now).inHours;
+    final startTime = widget.data['start_time'] as String? ?? '00:00';
+    final endTime = widget.data['end_time'] as String? ?? '00:00';
     final price = widget.data['total_price'] ?? 150000;
     final paymentMethod = widget.data['payment_method'] ?? 'MoMo';
     final hostPhone = widget.data['host_phone'] ?? '0123 456 789';
 
-    final dateStr = _getFormattedDate(bookingDate);
-    final now = DateTime.now();
-    final hoursUntilMatch = bookingDate.difference(now).inHours;
+    final dateStr = DateFormat('dd/MM/yyyy').format(bookingDate);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -109,21 +136,34 @@ class _ActivityCardState extends State<ActivityCard> {
             children: [
               Expanded(child: _buildInfoRow(Icons.sports_tennis, '$subCourtName - $courtName')),
               if (widget.category == 'upcoming')
-                GestureDetector(
-                  onTap: () => _handleCancellation(context, hoursUntilMatch),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.red),
-                    ),
-                    child: const Text(
-                      'Hủy',
-                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
-                    ),
-                  ),
-                ),
+                widget.data['status'] == 'cancellation_pending'
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.purple),
+                        ),
+                        child: const Text(
+                          'Chờ huỷ',
+                          style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 10),
+                        ),
+                      )
+                    : GestureDetector(
+                        onTap: () => _handleCancellation(context, hoursUntilMatch),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.red),
+                          ),
+                          child: const Text(
+                            'Hủy',
+                            style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ),
+                      ),
             ],
           ),
           const SizedBox(height: 12),
@@ -260,11 +300,24 @@ class _ActivityCardState extends State<ActivityCard> {
                 );
                 return;
               }
-              // Here you would typically send the request to Firestore
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Yêu cầu hủy đã được gửi thành công')),
-              );
+              // Cập nhật trạng thái và lý do vào Firestore
+              FirebaseFirestore.instance.collection('bookings').doc(widget.data['id'] as String).update({
+                'status': 'cancellation_pending',
+                'cancellation_reason': reasonController.text.trim(),
+              }).then((_) {
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Yêu cầu hủy đã được gửi thành công')),
+                  );
+                }
+              }).catchError((e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Lỗi: $e')),
+                  );
+                }
+              });
             },
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4A6136)),
             child: const Text('Gửi yêu cầu', style: TextStyle(color: Colors.white)),

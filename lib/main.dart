@@ -9,7 +9,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/features/auth/pages/login_screen.dart';
 import 'presentation/features/court/pages/home_screen.dart'; // Đã sửa path theo feature court
-import 'presentation/features/auth/providers/auth_state_provider.dart'; // File vừa tạo ở trên
+import 'presentation/features/auth/providers/auth_state_provider.dart';
+import 'presentation/features/auth/providers/user_provider.dart';
+
+import 'presentation/features/admin/pages/admin_main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,7 +21,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await initializeDateFormatting('vi_VN', null);
-  await FirebaseAuth.instance.signOut();
+  // await FirebaseAuth.instance.signOut(); 
 
   runApp(
     const ProviderScope(
@@ -28,32 +31,42 @@ void main() async {
 }
 
 class MyApp extends ConsumerWidget {
-  // Chuyển sang ConsumerWidget để dùng ref
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. Lắng nghe stream thay đổi trạng thái (đã tạo ở bước trước)
     final authState = ref.watch(authStateChangesProvider);
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      // 2. Sử dụng .when để handle 3 trạng thái của một Stream
       home: authState.when(
         data: (user) {
-          // Nếu user == null nghĩa là chưa đăng nhập hoặc đã logout
           if (user == null) {
             return LoginScreen();
           }
-          // Nếu có user, đẩy thẳng vào Home
-          return const HomeScreen();
+          
+          return ref.watch(userDataProvider).when(
+            data: (userData) {
+              if (userData == null) return LoginScreen();
+              
+              final role = userData['role'] ?? 'player';
+              if (role == 'admin') {
+                return const AdminMainScreen();
+              }
+              return const HomeScreen();
+            },
+            loading: () => const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, st) => Scaffold(
+              body: Center(child: Text("Lỗi tải dữ liệu người dùng: $e")),
+            ),
+          );
         },
-        // Trong lúc app đang check Firebase (mất khoảng 1-2s đầu)
         loading: () => const Scaffold(
           body: Center(child: CircularProgressIndicator()),
         ),
-        // Nếu lỗi kết nối Firebase
         error: (e, st) => Scaffold(
           body: Center(child: Text("Lỗi khởi động: $e")),
         ),

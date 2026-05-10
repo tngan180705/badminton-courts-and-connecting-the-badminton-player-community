@@ -111,13 +111,28 @@ Future<List<MatchPostViewModel>> _fetchAndJoinPosts(
 
       String hostName = 'Người dùng';
       String hostAvatar = '';
-      double hostScore = 100.0;
+      double hostScore = 100.0; // Mặc định 5 sao (= 100 điểm)
 
       if (userSnap.docs.isNotEmpty) {
         final userData = userSnap.docs.first.data() as Map<String, dynamic>;
         hostName = userData['full_name'] ?? 'Người dùng';
         hostAvatar = userData['avatar_base64'] ?? '';
-        hostScore = (userData['reliability_score'] ?? 100.0).toDouble();
+
+        // Tính trung bình số sao từ collection 'reviews'
+        final reviewsSnap = await db
+            .collection('reviews')
+            .where('to_user_id', isEqualTo: post.hostId)
+            .get();
+        if (reviewsSnap.docs.isNotEmpty) {
+          final total = reviewsSnap.docs.fold<int>(
+            0,
+            (sum, doc) => sum + ((doc.data()['rating_score'] as num?)?.toInt() ?? 5),
+          );
+          final avgStars = total / reviewsSnap.docs.length; // 1.0 – 5.0
+          hostScore = avgStars * 20.0; // quy ra 100-điểm (để hiển thị trong MatchCard)
+        } else {
+          hostScore = 100.0; // chưa có đánh giá nào → 5 sao mặc định
+        }
       }
 
       final memberIds = membersSnap.docs
@@ -193,6 +208,7 @@ final myPostsProvider = StreamProvider<List<MatchPostViewModel>>((ref) {
   final hostedStream = db
       .collection('match_posts')
       .where('host_id', isEqualTo: user.uid)
+      .where('status', whereIn: ['open', 'full'])
       .snapshots();
       
   final joinedStream = db

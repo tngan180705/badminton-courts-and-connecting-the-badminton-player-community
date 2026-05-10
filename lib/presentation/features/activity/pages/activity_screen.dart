@@ -220,19 +220,21 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
                 data: (activities) {
                   final now = DateTime.now();
 
-                  final upcoming = activities.where((a) {
-                    final date = (a['booking_date'] as Timestamp).toDate();
-                    final status = a['status'] as String;
-                    final endTime = a['end_time'] as String? ?? '00:00';
-                    
-                    try {
-                      final endParts = endTime.split(':');
-                      final endDateTime = DateTime(date.year, date.month, date.day, int.parse(endParts[0]), int.parse(endParts[1]));
-                      return status == 'confirmed' && endDateTime.isAfter(now);
-                    } catch (e) {
-                      return status == 'confirmed' && date.isAfter(now.subtract(const Duration(days: 1)));
-                    }
-                  }).toList();
+                    final upcoming = activities.where((a) {
+                      final date = (a['booking_date'] as Timestamp).toDate();
+                      final status = a['status'] as String;
+                      final endTime = a['end_time'] as String? ?? '00:00';
+                      
+                      final isUpcomingStatus = status == 'confirmed' || status == 'ongoing' || status == 'cancellation_pending';
+                      
+                      try {
+                        final endParts = endTime.split(':');
+                        final endDateTime = DateTime(date.year, date.month, date.day, int.parse(endParts[0]), int.parse(endParts[1]));
+                        return isUpcomingStatus && endDateTime.isAfter(now);
+                      } catch (e) {
+                        return isUpcomingStatus && date.isAfter(now.subtract(const Duration(days: 1)));
+                      }
+                    }).toList();
 
                   final finished = activities.where((a) {
                     final date = (a['booking_date'] as Timestamp).toDate();

@@ -167,7 +167,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
       'end_time': _formatTime(widget.endTime),
       'status': 'pending_confirmation',
       'total_price': totalPrice.toInt(),
-      'payment_method': 'bank_transfer',
+      'payment_method': 'Chuyển khoản ngân hàng',
       'check_in_status': false,
       'created_at': Timestamp.now(),
     });
@@ -265,12 +265,13 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
       'total_price': totalPrice.toInt(),
       'deposit_paid': true,
       'deposit_amount': depositAmount.toInt(),
-      'payment_method': 'bank_transfer',
+      'payment_method': 'Chuyển khoản ngân hàng',
       'check_in_status': false,
       'created_at': Timestamp.now(),
     });
 
-    // 2. Tạo match_post
+    // 2. Tạo match_post với status 'pending_payment' → ẩn khỏi community feed
+    // Admin xác nhận thanh toán → đổi thành 'open' để hiện lên
     final matchPostId = await _generateMatchPostId();
     await db.collection('match_posts').doc(matchPostId).set({
       'host_id': currentUser.uid,
@@ -278,7 +279,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
       'title': 'Tìm $slots người chơi',
       'description': 'Trình độ: $skill',
       'slots_needed': slots,
-      'status': 'open',
+      'status': 'pending_payment',
       'skill_level': skill,
       'created_at': Timestamp.now(),
     });

@@ -31,7 +31,7 @@ class TransactionModel {
       amount: (json['amount'] ?? 0).toDouble(),
       type: json['type'] ?? 'payment',
       paymentType: json['payment_type'] ?? 'full_payment',
-      paymentMethod: json['payment_method'] ?? 'bank_transfer',
+      paymentMethod: json['payment_method'] ?? 'Chuyển khoản ngân hàng',
       status: json['status'] ?? 'pending',
       transferContent: json['transfer_content'] ?? '',
       createdAt: (json['created_at'] != null)
