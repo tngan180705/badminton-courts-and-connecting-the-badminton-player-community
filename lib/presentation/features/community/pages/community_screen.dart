@@ -16,6 +16,8 @@ import '../../activity/pages/activity_screen.dart';
 import '../../court/pages/home_screen.dart';
 import '../../profile/pages/profile_screen.dart';
 
+import '../../../../core/utils/fixed_fab_location.dart';
+
 class CommunityScreen extends ConsumerWidget {
   const CommunityScreen({super.key});
 
@@ -111,7 +113,7 @@ class CommunityScreen extends ConsumerWidget {
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: const FixedCenterDockedFabLocation(),
     );
   }
 
