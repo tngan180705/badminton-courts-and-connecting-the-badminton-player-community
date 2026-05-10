@@ -3,7 +3,10 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../data/models/match_post_view_model.dart';
 import 'dart:convert';
-class MatchCard extends StatelessWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../presentation/features/auth/providers/user_profile_provider.dart';
+
+class MatchCard extends ConsumerWidget {
   final MatchPostViewModel match;
   final bool isMyPost;
   final VoidCallback? onJoinPressed;
@@ -18,7 +21,14 @@ class MatchCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hostDataAsync = ref.watch(userProfileProvider(match.hostId));
+    
+    final hostAvatar = hostDataAsync.maybeWhen(
+      data: (data) => data?['avatar_base64'] as String?,
+      orElse: () => match.hostAvatarBase64,
+    );
+
     final now = DateTime.now();
     final isToday = match.bookingDate.day == now.day &&
         match.bookingDate.month == now.month &&
@@ -51,18 +61,18 @@ class MatchCard extends StatelessWidget {
   backgroundColor: AppColors.secondary.withOpacity(0.3),
 
   backgroundImage:
-      match.hostAvatarBase64 != null &&
-              match.hostAvatarBase64!.isNotEmpty
+      hostAvatar != null &&
+              hostAvatar.isNotEmpty
           ? MemoryImage(
               base64Decode(
-                match.hostAvatarBase64!,
+                hostAvatar,
               ),
             )
           : null,
 
   child:
-      match.hostAvatarBase64 == null ||
-              match.hostAvatarBase64!.isEmpty
+      hostAvatar == null ||
+              hostAvatar.isEmpty
           ? const Icon(
               Icons.person,
               color: AppColors.secondary,

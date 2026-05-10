@@ -25,6 +25,11 @@ class AppTheme {
       surface: Colors.white,
     ),
 
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ),
+
     // Bạn có thể thêm các cấu hình TextTheme hoặc ButtonTheme tại đây
     // đảm bảo sử dụng các hằng số từ AppTextStyles
   );

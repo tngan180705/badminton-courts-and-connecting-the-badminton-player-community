@@ -20,7 +20,7 @@ import '../../../../data/models/match_post_view_model.dart';
 import '../../court/widgets/court_detail_widgets.dart';
 import '../providers/user_repository_provider.dart';
 import '../../review/widgets/review_tile.dart';
-
+import '../../../../core/utils/fixed_fab_location.dart';
 class CourtDetailScreen extends ConsumerStatefulWidget {
   final String courtName;
   final SubCourtModel subCourt;
@@ -301,7 +301,7 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.smart_toy_outlined),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: const FixedCenterDockedFabLocation(),
       bottomNavigationBar: MainFooter(
         currentIndex: 0,
         onTap: (index) {

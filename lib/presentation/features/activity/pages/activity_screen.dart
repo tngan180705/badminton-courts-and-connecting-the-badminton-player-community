@@ -12,6 +12,7 @@ import '../../court/pages/home_screen.dart';
 import '../widgets/activity_card.dart';
 import '../../profile/pages/profile_screen.dart';
 import '../../auth/providers/auth_state_provider.dart';
+import '../../../../core/utils/fixed_fab_location.dart';
 
 /// Helper to fetch details for a list of bookings
 Future<List<Map<String, dynamic>>> _fetchDetails(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) async {
@@ -274,32 +275,30 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
           if (index == 0) {
             Navigator.pushAndRemoveUntil(
               context,
-              MaterialPageRoute(builder: (_) => HomeScreen()),
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
               (route) => false,
             );
           } else if (index == 1) {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const CommunityScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const CommunityScreen()),
             );
           } else if (index == 3) {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const ProfileScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
             );
           }
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: const Color(0xFF4A6136),
+        onPressed: () {
+          // Logic cho AI Bot hoặc Đăng bài mới
+        },
+        backgroundColor: AppColors.primary,
         child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: const FixedCenterDockedFabLocation(),
     );
   }
 

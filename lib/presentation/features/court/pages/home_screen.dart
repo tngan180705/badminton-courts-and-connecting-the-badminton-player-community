@@ -17,6 +17,8 @@ import '../../profile/pages/profile_screen.dart';
 
 
 
+import '../../../../core/utils/fixed_fab_location.dart';
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -168,8 +170,7 @@ class HomeScreen extends ConsumerWidget {
         child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
       ),
 
-      floatingActionButtonLocation:
-          FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: const FixedCenterDockedFabLocation(),
     );
   }
 

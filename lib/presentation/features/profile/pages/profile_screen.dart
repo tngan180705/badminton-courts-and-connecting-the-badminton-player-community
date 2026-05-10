@@ -14,6 +14,7 @@ import '../../auth/pages/login_screen.dart';
 import '../../court/pages/home_screen.dart';
 import '../../community/pages/community_screen.dart';
 import '../../activity/pages/activity_screen.dart';
+import '../../../../core/utils/fixed_fab_location.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -169,7 +170,7 @@ class ProfileScreen extends ConsumerWidget {
         backgroundColor: const Color(0xFF4A6136),
         child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: const FixedCenterDockedFabLocation(),
     );
   }
 }
