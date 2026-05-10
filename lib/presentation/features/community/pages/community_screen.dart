@@ -15,8 +15,8 @@ import 'community_tab_bar.dart';
 import '../../activity/pages/activity_screen.dart';
 import '../../court/pages/home_screen.dart';
 import '../../profile/pages/profile_screen.dart';
-
 import '../../../../core/utils/fixed_fab_location.dart';
+import '../../ai/pages/ai_chat_screen.dart';
 
 class CommunityScreen extends ConsumerWidget {
   const CommunityScreen({super.key});
@@ -109,7 +109,12 @@ class CommunityScreen extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _openPostSheet(context),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AiChatScreen()),
+          );
+        },
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
       ),

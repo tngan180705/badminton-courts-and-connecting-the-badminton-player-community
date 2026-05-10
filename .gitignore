@@ -52,4 +52,4 @@ app.*.map.json
 Thumbs.db
 
 # Nếu bạn dùng tool để quản lý biến môi trường
-.env*
+.env

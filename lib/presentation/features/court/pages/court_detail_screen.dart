@@ -21,6 +21,7 @@ import '../../court/widgets/court_detail_widgets.dart';
 import '../providers/user_repository_provider.dart';
 import '../../review/widgets/review_tile.dart';
 import '../../../../core/utils/fixed_fab_location.dart';
+import '../../ai/pages/ai_chat_screen.dart';
 class CourtDetailScreen extends ConsumerStatefulWidget {
   final String courtName;
   final SubCourtModel subCourt;
@@ -297,7 +298,12 @@ class _CourtDetailScreenState extends ConsumerState<CourtDetailScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AiChatScreen()),
+          );
+        },
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.smart_toy_outlined),
       ),
