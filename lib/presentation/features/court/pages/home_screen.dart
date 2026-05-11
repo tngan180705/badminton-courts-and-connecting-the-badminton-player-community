@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -18,6 +16,8 @@ import '../../profile/pages/profile_screen.dart';
 
 
 import '../../../../core/utils/fixed_fab_location.dart';
+import '../../ai/widgets/smart_rebooking_widget.dart';
+import '../../ai/pages/ai_chat_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -56,8 +56,10 @@ class HomeScreen extends ConsumerWidget {
               /// BANNER
               SliverToBoxAdapter(child: _buildMainBannerSlider()),
 
-              /// PROMO
-              SliverToBoxAdapter(child: _buildPromotionBanner()),
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+              /// SMART REBOOKING (dynamic, based on user history)
+              const SliverToBoxAdapter(child: SmartRebookingWidget()),
 
               /// TITLE
               SliverToBoxAdapter(
@@ -165,7 +167,12 @@ class HomeScreen extends ConsumerWidget {
       ),
 
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AiChatScreen()),
+          );
+        },
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
       ),
@@ -203,22 +210,4 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  /// ================= PROMO =================
-  Widget _buildPromotionBanner() {
-    return Container(
-      margin: const EdgeInsets.all(AppSizes.screenPadding),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.smart_toy_outlined),
-          SizedBox(width: 10),
-          Expanded(child: Text('Thứ 3 rồi, đặt sân số 2 lúc 18h nhé?')),
-        ],
-      ),
-    );
-  }
 }

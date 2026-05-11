@@ -12,11 +12,16 @@ import '../pages/booking_detail_screen.dart';
 class BookingScreen extends ConsumerStatefulWidget {
   final String courtName;
   final SubCourtModel subCourt;
+  // Optional: pre-fill from Smart Rebooking
+  final DateTime? initialDate;
+  final int? initialStartHour;
 
   const BookingScreen({
     super.key,
     required this.courtName,
     required this.subCourt,
+    this.initialDate,
+    this.initialStartHour,
   });
 
   @override
@@ -27,6 +32,20 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   DateTime? _selectedDate;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill if coming from Smart Rebooking
+    if (widget.initialDate != null) {
+      _selectedDate = widget.initialDate;
+    }
+    if (widget.initialStartHour != null) {
+      _startTime = TimeOfDay(hour: widget.initialStartHour!, minute: 0);
+      // Default: 2 hours
+      _endTime = TimeOfDay(hour: (widget.initialStartHour! + 2).clamp(0, 22), minute: 0);
+    }
+  }
 
   void _proceedToDetails() {
     if (_selectedDate == null || _startTime == null || _endTime == null) {
